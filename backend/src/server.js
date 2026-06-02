@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import express from 'express'
 import cors from 'cors'
 import { z } from 'zod'
@@ -17,6 +18,9 @@ app.use(
 const PORT = Number(process.env.PORT || 8080)
 const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), 'data')
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json')
+const FRONTEND_DIST_DIR =
+  process.env.FRONTEND_DIST_DIR ||
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../app/dist')
 
 const ProductSchema = z.object({
   id: z.string(),
@@ -232,6 +236,12 @@ app.delete('/api/products/:id', async (req, res) => {
   }
   await writeProducts(next)
   res.json({ ok: true })
+})
+
+// Serve the frontend (single deployment)
+app.use(express.static(FRONTEND_DIST_DIR))
+app.get('/', async (_req, res) => {
+  res.sendFile(path.join(FRONTEND_DIST_DIR, 'index.html'))
 })
 
 app.listen(PORT, () => {
