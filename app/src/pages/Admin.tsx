@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   LayoutDashboard,
@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Users,
   Settings,
+  Star,
   LogOut,
   Search,
   Plus,
@@ -21,29 +22,22 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react'
+import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
+import { useFeatured } from '@/hooks/use-featured'
 import type { Product } from '@/lib/products-store'
+import type { FeaturedItem } from '@/lib/featured-store'
+import {
+  apiListOrders,
+  formatOrderDate,
+  orderItemsSummary,
+  orderStatusLabel,
+  type AdminOrder,
+} from '@/lib/orders-api'
 
 const ADMIN_PASSWORD = 'admin123'
 
-type Tab = 'dashboard' | 'products' | 'orders' | 'customers' | 'settings'
-
-const ordersData = [
-  { id: '#ORD-001', customer: 'Priya S.', product: 'Side Open Kurti - Liva', date: '2025-05-28', status: 'Completed', amount: 599 },
-  { id: '#ORD-002', customer: 'Anitha M.', product: 'Ankle Length Leggings', date: '2025-05-29', status: 'Pending', amount: 299 },
-  { id: '#ORD-003', customer: 'Deepa R.', product: 'Premium Palazzo Pants', date: '2025-05-30', status: 'Processing', amount: 399 },
-  { id: '#ORD-004', customer: 'Lakshmi K.', product: 'Embroidered Party Kurti', date: '2025-05-30', status: 'Completed', amount: 899 },
-  { id: '#ORD-005', customer: 'Meena T.', product: 'Flared Palazzo - Solid', date: '2025-06-01', status: 'Pending', amount: 449 },
-  { id: '#ORD-006', customer: 'Sneha V.', product: 'Printed Casual Kurti', date: '2025-06-01', status: 'Processing', amount: 499 },
-]
-
-const customersData = [
-  { id: 1, name: 'Priya S.', phone: '+91 98765 43210', orders: 5, total: 3247 },
-  { id: 2, name: 'Anitha M.', phone: '+91 87654 32109', orders: 3, total: 1846 },
-  { id: 3, name: 'Deepa R.', phone: '+91 76543 21098', orders: 4, total: 2156 },
-  { id: 4, name: 'Lakshmi K.', phone: '+91 65432 10987', orders: 2, total: 1398 },
-  { id: 5, name: 'Meena T.', phone: '+91 54321 09876', orders: 1, total: 449 },
-]
+type Tab = 'dashboard' | 'products' | 'featured' | 'orders' | 'customers' | 'settings'
 
 export default function Admin() {
   const navigate = useNavigate()
@@ -54,6 +48,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [searchQuery, setSearchQuery] = useState('')
   const { products, addProduct, updateProduct, deleteProduct } = useProducts()
+  const { featured, addFeatured, updateFeatured, deleteFeatured } = useFeatured()
   const [productModalOpen, setProductModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productError, setProductError] = useState('')
@@ -66,6 +61,92 @@ export default function Admin() {
     description: '',
     image: '' as string,
   })
+
+  const [featuredModalOpen, setFeaturedModalOpen] = useState(false)
+  const [editingFeatured, setEditingFeatured] = useState<FeaturedItem | null>(null)
+  const [featuredError, setFeaturedError] = useState('')
+  const [featuredForm, setFeaturedForm] = useState({
+    name: '',
+    price: '0',
+    fullSize: 'XS, S, M, L, XL, XXL',
+    description: '',
+    image: '' as string,
+  })
+
+  const [orders, setOrders] = useState<AdminOrder[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null)
+
+  const loadOrders = useCallback(async () => {
+    setOrdersLoading(true)
+    try {
+      const list = await apiListOrders()
+      setOrders(list)
+    } catch {
+      setOrders([])
+    } finally {
+      setOrdersLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!authenticated) return
+    if (activeTab === 'dashboard' || activeTab === 'orders' || activeTab === 'customers') {
+      loadOrders()
+    }
+  }, [authenticated, activeTab, loadOrders])
+
+  const customersFromOrders = useMemo(() => {
+    const map = new Map<
+      string,
+      { name: string; phone: string; orders: number; total: number; address: string; city: string }
+    >()
+    for (const o of orders) {
+      const key = o.customer.phone
+      const prev = map.get(key)
+      if (prev) {
+        prev.orders += 1
+        prev.total += o.amount
+      } else {
+        map.set(key, {
+          name: o.customer.name,
+          phone: o.customer.phone,
+          orders: 1,
+          total: o.amount,
+          address: o.customer.address,
+          city: o.customer.city,
+        })
+      }
+    }
+    return Array.from(map.values())
+  }, [orders])
+
+  const filteredOrders = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return orders
+    return orders.filter((o) => {
+      const hay = [
+        o.id,
+        o.customer.name,
+        o.customer.phone,
+        o.customer.address,
+        o.customer.city,
+        orderItemsSummary(o.items),
+      ]
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(q)
+    })
+  }, [orders, searchQuery])
+
+  const filteredCustomers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return customersFromOrders
+    return customersFromOrders.filter((c) => {
+      const hay = [c.name, c.phone, c.address, c.city].join(' ').toLowerCase()
+      return hay.includes(q)
+    })
+  }, [customersFromOrders, searchQuery])
 
   const toDataUrl = (file: File) => {
     return new Promise<string>((resolve, reject) => {
@@ -124,6 +205,69 @@ export default function Admin() {
     setProductError('')
   }
 
+  const openAddFeatured = () => {
+    if (featured.length >= 2) {
+      setFeaturedError('Only 2 New Arrivals are allowed. Please edit an existing item.')
+      setFeaturedModalOpen(true)
+      return
+    }
+    setEditingFeatured(null)
+    setFeaturedError('')
+    setFeaturedForm({
+      name: '',
+      price: '0',
+      fullSize: 'XS, S, M, L, XL, XXL',
+      description: '',
+      image: '',
+    })
+    setFeaturedModalOpen(true)
+  }
+
+  const openEditFeatured = (f: FeaturedItem) => {
+    setEditingFeatured(f)
+    setFeaturedError('')
+    setFeaturedForm({
+      name: f.name,
+      price: String(f.price),
+      fullSize: f.fullSize,
+      description: f.description,
+      image: f.image,
+    })
+    setFeaturedModalOpen(true)
+  }
+
+  const closeFeaturedModal = () => {
+    setFeaturedModalOpen(false)
+    setEditingFeatured(null)
+    setFeaturedError('')
+  }
+
+  const submitFeatured = () => {
+    const name = featuredForm.name.trim()
+    const price = Number(featuredForm.price)
+    const fullSize = featuredForm.fullSize.trim()
+    const description = featuredForm.description.trim()
+    const image = featuredForm.image.trim()
+
+    if (!name) return setFeaturedError('Name is required')
+    if (!Number.isFinite(price) || price < 0) return setFeaturedError('Price must be valid')
+    if (!fullSize) return setFeaturedError('Full size is required')
+    if (!description) return setFeaturedError('Description is required')
+    if (!image) return setFeaturedError('Please upload an image')
+
+    setFeaturedError('')
+    if (!editingFeatured && featured.length >= 2) {
+      return setFeaturedError('Only 2 New Arrivals are allowed. Please edit an existing item.')
+    }
+
+    if (editingFeatured) {
+      updateFeatured(editingFeatured.id, { name, price, fullSize, description, image })
+    } else {
+      addFeatured({ name, price, fullSize, description, image })
+    }
+    closeFeaturedModal()
+  }
+
   const submitProduct = async () => {
     const name = productForm.name.trim()
     const category = productForm.category.trim() || 'Other'
@@ -178,12 +322,10 @@ export default function Admin() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-6">
         <div className="w-full max-w-[400px]">
-          <div className="text-center mb-10">
-            <h1 className="font-display text-[28px] font-medium tracking-[0.1em] text-black">
-              LOOK LIKE
-            </h1>
-            <p className="font-body text-[12px] uppercase tracking-[0.1em] text-black/40 mt-1">
-              LADIES WEAR - ADMIN
+          <div className="flex flex-col items-center mb-10">
+            <Logo variant="dark" size="lg" />
+            <p className="font-body text-[11px] uppercase tracking-[0.3em] text-black/40 mt-3">
+              Admin Panel
             </p>
           </div>
 
@@ -237,23 +379,26 @@ export default function Admin() {
   const sidebarItems: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'products', label: 'Products', icon: Package },
+    { id: 'featured', label: 'New Arrivals', icon: Star },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]
 
-  const totalRevenue = ordersData.reduce((sum, o) => sum + o.amount, 0)
-  const pendingOrders = ordersData.filter((o) => o.status === 'Pending').length
+  const totalRevenue = orders.reduce((sum, o) => sum + o.amount, 0)
+  const codOrders = orders.filter((o) => o.status === 'cod').length
+  const paidOrders = orders.filter((o) => o.status === 'paid').length
 
-  const statusBadge = (status: string) => {
-    const classes: Record<string, string> = {
-      Completed: 'bg-green-100 text-green-700',
-      Pending: 'bg-yellow-100 text-yellow-700',
-      Processing: 'bg-gray-100 text-gray-700',
+  const statusBadge = (status: AdminOrder['status']) => {
+    const classes: Record<AdminOrder['status'], string> = {
+      paid: 'bg-green-100 text-green-700',
+      cod: 'bg-amber-100 text-amber-800',
     }
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-body text-[12px] font-medium ${classes[status] || 'bg-gray-100 text-gray-700'}`}>
-        {status}
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-body text-[12px] font-medium ${classes[status]}`}
+      >
+        {orderStatusLabel(status)}
       </span>
     )
   }
@@ -262,12 +407,10 @@ export default function Admin() {
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
       <aside className="w-[260px] min-h-screen bg-black flex flex-col fixed left-0 top-0">
-        <div className="p-6">
-          <h1 className="font-display text-[20px] font-medium tracking-[0.1em] text-white">
-            LOOK LIKE
-          </h1>
-          <p className="font-body text-[11px] uppercase tracking-[0.1em] text-white/40 mt-1">
-            ADMIN PANEL
+        <div className="p-6 border-b border-white/10">
+          <Logo variant="light" size="sm" align="start" />
+          <p className="font-body text-[10px] uppercase tracking-[0.3em] text-white/40 mt-3">
+            Admin Panel
           </p>
         </div>
 
@@ -306,8 +449,8 @@ export default function Admin() {
       <main className="flex-1 ml-[260px] p-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-10">
-          <h2 className="font-display text-[28px] font-normal text-black capitalize">
-            {activeTab}
+          <h2 className="font-display text-[28px] font-normal text-black">
+            {activeTab === 'featured' ? 'New Arrivals' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
           </h2>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -329,10 +472,10 @@ export default function Admin() {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { label: 'TOTAL PRODUCTS', value: products.length, icon: Box, change: '+3 this week' },
-                { label: 'TOTAL ORDERS', value: ordersData.length, icon: ShoppingCart, change: '+2 today' },
-                { label: 'REVENUE THIS MONTH', value: `Rs. ${totalRevenue.toLocaleString()}`, icon: DollarSign, change: '+12% from last' },
-                { label: 'PENDING ORDERS', value: pendingOrders, icon: Clock, change: 'Needs attention' },
+                { label: 'TOTAL PRODUCTS', value: products.length, icon: Box, change: 'In catalog' },
+                { label: 'CONFIRMED ORDERS', value: orders.length, icon: ShoppingCart, change: `${paidOrders} paid · ${codOrders} COD` },
+                { label: 'TOTAL REVENUE', value: `Rs. ${totalRevenue.toLocaleString()}`, icon: DollarSign, change: 'Paid + COD' },
+                { label: 'COD ORDERS', value: codOrders, icon: Clock, change: 'Cash on delivery' },
               ].map((stat) => {
                 const Icon = stat.icon
                 return (
@@ -373,16 +516,28 @@ export default function Admin() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ordersData.slice(0, 5).map((order) => (
-                      <tr key={order.id} className="border-b border-black/[0.04] hover:bg-black/[0.01]">
-                        <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.id}</td>
-                        <td className="px-6 py-4 font-body text-[13px] text-black">{order.customer}</td>
-                        <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.product}</td>
-                        <td className="px-6 py-4 font-body text-[13px] text-black/40">{order.date}</td>
-                        <td className="px-6 py-4">{statusBadge(order.status)}</td>
-                        <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {order.amount}</td>
+                    {orders.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-8 font-body text-[13px] text-black/40 text-center">
+                          No confirmed orders yet.
+                        </td>
                       </tr>
-                    ))}
+                    ) : (
+                      orders.slice(0, 5).map((order) => (
+                        <tr key={order.id} className="border-b border-black/[0.04] hover:bg-black/[0.01]">
+                          <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.id}</td>
+                          <td className="px-6 py-4 font-body text-[13px] text-black">{order.customer.name}</td>
+                          <td className="px-6 py-4 font-body text-[13px] text-black/60 max-w-[200px] truncate">
+                            {orderItemsSummary(order.items)}
+                          </td>
+                          <td className="px-6 py-4 font-body text-[13px] text-black/40">
+                            {formatOrderDate(order.createdAt)}
+                          </td>
+                          <td className="px-6 py-4">{statusBadge(order.status)}</td>
+                          <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {order.amount}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -458,73 +613,242 @@ export default function Admin() {
           </div>
         )}
 
-        {/* Orders */}
-        {activeTab === 'orders' && (
-          <div>
-            <div className="flex items-center gap-4 mb-6">
-              {['All', 'Pending', 'Processing', 'Completed'].map((filter) => (
-                <button
-                  key={filter}
-                  className="h-[36px] px-4 font-body text-[12px] uppercase tracking-[0.06em] border border-black/10 text-black/60 hover:border-black/30 hover:text-black transition-colors"
-                >
-                  {filter}
-                </button>
-              ))}
+        {/* New Arrivals */}
+        {activeTab === 'featured' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="font-body text-[14px] text-black/50">{featured.length} new arrival items</p>
+              <button
+                onClick={openAddFeatured}
+                disabled={featured.length >= 2}
+                className="h-[40px] px-4 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.04em] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-black/90 disabled:hover:bg-black"
+              >
+                <Plus size={16} />
+                Add New Arrival
+              </button>
             </div>
+
+            {featured.length >= 2 && (
+              <p className="font-body text-[13px] text-black/40">
+                Limit reached (2/2). You can edit existing New Arrivals to change the dresses.
+              </p>
+            )}
 
             <div className="bg-white border border-black/[0.08] overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-black/[0.06]">
-                    {['Order ID', 'Customer', 'Product', 'Date', 'Status', 'Amount'].map((h) => (
-                      <th key={h} className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium">
+                    {['Image', 'Name', 'Price', 'Actions'].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium"
+                      >
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {ordersData.map((order) => (
-                    <tr key={order.id} className="border-b border-black/[0.04] hover:bg-black/[0.01]">
-                      <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.id}</td>
-                      <td className="px-6 py-4 font-body text-[13px] text-black">{order.customer}</td>
-                      <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.product}</td>
-                      <td className="px-6 py-4 font-body text-[13px] text-black/40">{order.date}</td>
-                      <td className="px-6 py-4">{statusBadge(order.status)}</td>
-                      <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {order.amount}</td>
+                  {featured.map((f) => (
+                    <tr key={f.id} className="border-b border-black/[0.04] hover:bg-black/[0.01]">
+                      <td className="px-6 py-3">
+                        <img src={f.image} alt={f.name} className="w-10 h-10 object-cover" />
+                      </td>
+                      <td className="px-6 py-4 font-body text-[13px] text-black">{f.name}</td>
+                      <td className="px-6 py-4 font-body text-[13px] text-black">Rs. {f.price}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEditFeatured(f)}
+                            className="p-1.5 hover:bg-black/[0.04] transition-colors"
+                            aria-label={`Edit ${f.name}`}
+                          >
+                            <Pencil size={14} className="text-black/40" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              const ok = window.confirm(`Delete new arrival "${f.name}"?`)
+                              if (ok) deleteFeatured(f.id)
+                            }}
+                            className="p-1.5 hover:bg-red-50 transition-colors"
+                            aria-label={`Delete ${f.name}`}
+                          >
+                            <Trash2 size={14} className="text-red-400" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
+              {featured.length === 0 && (
+                <div className="p-6">
+                  <p className="font-body text-[13px] text-black/40">No new arrivals yet.</p>
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* Orders */}
+        {activeTab === 'orders' && (
+          <div className="space-y-6">
+            <p className="font-body text-[13px] text-black/50">
+              Only successful online payments (Paid) and Cash on Delivery orders are shown.
+            </p>
+
+            {ordersLoading ? (
+              <p className="font-body text-[14px] text-black/50">Loading orders…</p>
+            ) : (
+              <>
+                <div className="bg-white border border-black/[0.08] overflow-x-auto">
+                  <table className="w-full min-w-[900px]">
+                    <thead>
+                      <tr className="border-b border-black/[0.06]">
+                        {['Order ID', 'Customer', 'Phone', 'Products', 'Payment', 'Amount', 'Date'].map((h) => (
+                          <th
+                            key={h}
+                            className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-8 font-body text-[13px] text-black/40 text-center">
+                            No orders found.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredOrders.map((order) => (
+                          <tr
+                            key={order.id}
+                            onClick={() => setSelectedOrder(order)}
+                            className="border-b border-black/[0.04] hover:bg-black/[0.02] cursor-pointer"
+                          >
+                            <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.id}</td>
+                            <td className="px-6 py-4 font-body text-[13px] text-black">{order.customer.name}</td>
+                            <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.customer.phone}</td>
+                            <td className="px-6 py-4 font-body text-[12px] text-black/60 max-w-[220px]">
+                              {orderItemsSummary(order.items)}
+                            </td>
+                            <td className="px-6 py-4">{statusBadge(order.status)}</td>
+                            <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {order.amount}</td>
+                            <td className="px-6 py-4 font-body text-[13px] text-black/40">
+                              {formatOrderDate(order.createdAt)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {selectedOrder && (
+                  <div className="bg-white border border-black/[0.08] p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <h3 className="font-body text-[16px] font-medium text-black">Order details</h3>
+                      <button
+                        onClick={() => setSelectedOrder(null)}
+                        className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50 hover:text-black"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 font-body text-[13px]">
+                      <div className="space-y-2">
+                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Customer</p>
+                        <p className="text-black">{selectedOrder.customer.name}</p>
+                        <p className="text-black/70">{selectedOrder.customer.phone}</p>
+                        {selectedOrder.customer.email && (
+                          <p className="text-black/70">{selectedOrder.customer.email}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Delivery address</p>
+                        <p className="text-black/80">{selectedOrder.customer.address}</p>
+                        <p className="text-black/70">
+                          {selectedOrder.customer.city}
+                          {selectedOrder.customer.state ? `, ${selectedOrder.customer.state}` : ''} –{' '}
+                          {selectedOrder.customer.pincode}
+                        </p>
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Items</p>
+                        <ul className="space-y-1">
+                          {selectedOrder.items.map((item, idx) => (
+                            <li key={idx} className="text-black/80">
+                              {item.name} · Size {item.size} · Qty {item.quantity} · Rs. {item.price}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Payment</p>
+                        <p className="mt-1">{statusBadge(selectedOrder.status)}</p>
+                      </div>
+                      <div>
+                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Total</p>
+                        <p className="mt-1 text-black font-medium">Rs. {selectedOrder.amount}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
         {/* Customers */}
         {activeTab === 'customers' && (
-          <div className="bg-white border border-black/[0.08] overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-black/[0.06]">
-                  {['ID', 'Name', 'Phone', 'Orders', 'Total Spent'].map((h) => (
-                    <th key={h} className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {customersData.map((customer) => (
-                  <tr key={customer.id} className="border-b border-black/[0.04] hover:bg-black/[0.01]">
-                    <td className="px-6 py-4 font-body text-[13px] text-black/40">#{customer.id}</td>
-                    <td className="px-6 py-4 font-body text-[13px] text-black">{customer.name}</td>
-                    <td className="px-6 py-4 font-body text-[13px] text-black/60">{customer.phone}</td>
-                    <td className="px-6 py-4 font-body text-[13px] text-black">{customer.orders}</td>
-                    <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {customer.total.toLocaleString()}</td>
+          <div className="space-y-4">
+            <p className="font-body text-[13px] text-black/50">
+              Customers are built from confirmed orders (Paid + Cash on Delivery).
+            </p>
+            <div className="bg-white border border-black/[0.08] overflow-x-auto">
+              <table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-black/[0.06]">
+                    {['Name', 'Phone', 'City', 'Address', 'Orders', 'Total Spent'].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 font-body text-[13px] text-black/40 text-center">
+                        No customers yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredCustomers.map((customer) => (
+                      <tr key={customer.phone} className="border-b border-black/[0.04] hover:bg-black/[0.01]">
+                        <td className="px-6 py-4 font-body text-[13px] text-black">{customer.name}</td>
+                        <td className="px-6 py-4 font-body text-[13px] text-black/60">{customer.phone}</td>
+                        <td className="px-6 py-4 font-body text-[13px] text-black/60">{customer.city}</td>
+                        <td className="px-6 py-4 font-body text-[12px] text-black/50 max-w-[200px] truncate">
+                          {customer.address}
+                        </td>
+                        <td className="px-6 py-4 font-body text-[13px] text-black">{customer.orders}</td>
+                        <td className="px-6 py-4 font-body text-[13px] font-medium text-black">
+                          Rs. {customer.total.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -716,6 +1040,117 @@ export default function Admin() {
                 {editingProduct ? 'Save' : 'Add'}
               </button>
             </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit New Arrival Modal */}
+      {featuredModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
+          <button className="absolute inset-0 bg-black/50" onClick={closeFeaturedModal} aria-label="Close modal" />
+          <div className="relative w-full max-w-[520px] bg-white border border-black/[0.12] max-h-[85vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-6">
+                <div>
+                  <h3 className="font-display text-[22px] font-normal text-black">
+                    {editingFeatured ? 'Edit New Arrival' : 'Add New Arrival'}
+                  </h3>
+                  <p className="font-body text-[12px] text-black/40 mt-1">This appears in the New Arrivals section on the homepage.</p>
+                </div>
+                <button className="p-2 hover:bg-black/[0.04] transition-colors" onClick={closeFeaturedModal} aria-label="Close">
+                  <X size={18} className="text-black/50" />
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Name</label>
+                  <input
+                    value={featuredForm.name}
+                    onChange={(e) => setFeaturedForm((s) => ({ ...s, name: e.target.value }))}
+                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                    placeholder="Item name"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Price (Rs.)</label>
+                    <input
+                      inputMode="numeric"
+                      value={featuredForm.price}
+                      onChange={(e) => setFeaturedForm((s) => ({ ...s, price: e.target.value }))}
+                      className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                      placeholder="899"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Full Size</label>
+                    <input
+                      value={featuredForm.fullSize}
+                      onChange={(e) => setFeaturedForm((s) => ({ ...s, fullSize: e.target.value }))}
+                      className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                      placeholder="XS, S, M, L, XL, XXL"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Description</label>
+                  <textarea
+                    value={featuredForm.description}
+                    onChange={(e) => setFeaturedForm((s) => ({ ...s, description: e.target.value }))}
+                    rows={4}
+                    className="w-full mt-1 px-3 py-2 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30 resize-none"
+                    placeholder="Write description..."
+                  />
+                </div>
+
+                <div>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Image Upload</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="w-full mt-2 font-body text-[13px]"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const dataUrl = await toDataUrl(file)
+                      setFeaturedForm((s) => ({ ...s, image: dataUrl }))
+                    }}
+                  />
+                  <div className="mt-3 flex items-center gap-4">
+                    <div className="w-14 h-14 bg-black/[0.04] border border-black/[0.06] overflow-hidden">
+                      {featuredForm.image ? (
+                        <img src={featuredForm.image} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full" />
+                      )}
+                    </div>
+                    <p className="font-body text-[12px] text-black/40">
+                      {featuredForm.image ? 'Image selected' : 'No image selected'}
+                    </p>
+                  </div>
+                </div>
+
+                {featuredError && <p className="font-body text-[13px] text-red-500">{featuredError}</p>}
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  onClick={closeFeaturedModal}
+                  className="h-[40px] px-4 border border-black/10 font-body text-[13px] uppercase tracking-[0.06em] text-black/60 hover:text-black hover:border-black/30 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitFeatured}
+                  className="h-[40px] px-4 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.04em] hover:bg-black/90 transition-colors"
+                >
+                  {editingFeatured ? 'Save' : 'Add'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

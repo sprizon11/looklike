@@ -1,24 +1,17 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useFeatured } from '@/hooks/use-featured'
 
 gsap.registerPlugin(ScrollTrigger)
-
-const featuredItems = [
-  {
-    name: 'Liva Side-Open Kurti',
-    image: '/images/featured-kurti-1.jpg',
-  },
-  {
-    name: 'Avaassa Designer Kurti',
-    image: '/images/featured-kurti-2.jpg',
-  },
-]
 
 export default function FeaturedCollection() {
   const sectionRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
   const itemsRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const { featured } = useFeatured()
 
   useEffect(() => {
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
@@ -70,16 +63,25 @@ export default function FeaturedCollection() {
       className="bg-white py-20 sm:py-24 md:py-28 px-5 sm:px-8 md:px-14"
     >
       <div className="max-w-[1440px] mx-auto">
-        <h2
-          ref={titleRef}
-          className="font-display text-[32px] sm:text-[36px] font-normal text-center mb-10 sm:mb-14 text-black"
-        >
-          Featured Collection
-        </h2>
+        <div className="mb-10 sm:mb-14">
+          <p className="font-body text-[11px] uppercase tracking-[0.18em] text-black/40">
+            Curated picks
+          </p>
+          <h2
+            ref={titleRef}
+            className="font-display text-[34px] sm:text-[40px] font-normal text-left text-black mt-2 leading-[1.1] tracking-[-0.02em]"
+          >
+            New Arrivals
+          </h2>
+          <div className="mt-5 h-[1px] w-[120px] bg-black/10" />
+        </div>
 
         <div ref={itemsRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
-          {featuredItems.map((item) => (
-            <div key={item.name} className="featured-item group cursor-pointer">
+          {featured.map((item) => (
+            <div
+              key={item.id}
+              className="featured-item group"
+            >
               <div className="overflow-hidden">
                 <img
                   src={item.image}
@@ -93,10 +95,14 @@ export default function FeaturedCollection() {
                 <h3 className="font-body text-[15px] font-medium text-[#212121]">
                   {item.name}
                 </h3>
-                <span className="inline-block mt-2 font-body text-[13px] font-normal uppercase tracking-[0.06em] text-black relative">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/featured/${item.id}`)}
+                  className="inline-block mt-2 font-body text-[13px] font-normal uppercase tracking-[0.06em] text-black relative"
+                >
                   View Details
                   <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-black transition-all duration-300 group-hover:w-full" />
-                </span>
+                </button>
               </div>
             </div>
           ))}

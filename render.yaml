@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: looklike
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: FRONTEND_DIST_DIR
+        value: ./app/dist
+      - key: DATA_DIR
+        value: ./backend/data
+      # Add in Render dashboard (do not commit secrets):
+      # RAZORPAY_KEY_ID
+      # RAZORPAY_KEY_SECRET

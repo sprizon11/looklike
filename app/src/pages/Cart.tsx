@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ChevronLeft, Trash2 } from 'lucide-react'
+import CheckoutModal from '@/components/CheckoutModal'
 import { clearCart, readCart, removeCartItem, subscribeCart, updateCartItem } from '@/lib/cart-store'
 
 export default function Cart() {
   const navigate = useNavigate()
   const [items, setItems] = useState(() => readCart())
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [orderSuccess, setOrderSuccess] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     setItems(readCart())
@@ -13,16 +17,6 @@ export default function Cart() {
   }, [])
 
   const total = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items])
-
-  const orderNow = () => {
-    if (items.length === 0) return
-    const lines = items.map(
-      (i) =>
-        `- ${i.name} | Size: ${i.size} | Qty: ${i.quantity} | Rs. ${i.price}`
-    )
-    const message = `Hi! I'd like to order:\\n\\n${lines.join('\\n')}\\n\\nTotal: Rs. ${total}`
-    window.open(`https://wa.me/919344841180?text=${encodeURIComponent(message)}`, '_blank')
-  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -46,6 +40,14 @@ export default function Cart() {
             </button>
           )}
         </div>
+
+        {orderSuccess && (
+          <div className="mt-6 border border-green-200 bg-green-50 p-4">
+            <p className="font-body text-[14px] text-green-800">
+              {successMessage || 'Thank you for your order. We will contact you shortly for delivery.'}
+            </p>
+          </div>
+        )}
 
         {items.length === 0 ? (
           <div className="mt-10 border border-black/[0.06] p-8 text-center">
@@ -71,9 +73,7 @@ export default function Cart() {
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="font-body text-[14px] font-medium text-black">{i.name}</p>
-                          <p className="font-body text-[12px] text-black/50 mt-1">
-                            Size: {i.size}
-                          </p>
+                          <p className="font-body text-[12px] text-black/50 mt-1">Size: {i.size}</p>
                           <p className="font-body text-[13px] text-black/60 mt-2">Rs. {i.price}</p>
                         </div>
                         <button
@@ -114,9 +114,7 @@ export default function Cart() {
                           </button>
                         </div>
 
-                        <p className="font-body text-[14px] font-medium text-black">
-                          Rs. {i.price * i.quantity}
-                        </p>
+                        <p className="font-body text-[14px] font-medium text-black">Rs. {i.price * i.quantity}</p>
                       </div>
                     </div>
                   </div>
@@ -125,9 +123,7 @@ export default function Cart() {
             </div>
 
             <div className="border border-black/[0.06] p-6 h-fit">
-              <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">
-                Summary
-              </p>
+              <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Summary</p>
               <div className="mt-4 flex items-center justify-between">
                 <p className="font-body text-[14px] text-black/60">Items</p>
                 <p className="font-body text-[14px] text-black">{items.length}</p>
@@ -138,19 +134,30 @@ export default function Cart() {
               </div>
 
               <button
-                onClick={orderNow}
+                onClick={() => setCheckoutOpen(true)}
                 className="mt-6 w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
               >
                 Order Now
               </button>
               <p className="mt-3 font-body text-[12px] text-black/40">
-                Order will open WhatsApp with your cart details.
+                Enter your delivery details and pay securely online with Razorpay.
               </p>
             </div>
           </div>
         )}
       </div>
+
+      <CheckoutModal
+        open={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        items={items}
+        total={total}
+        onSuccess={(message) => {
+          setSuccessMessage(message || '')
+          setOrderSuccess(true)
+          setItems([])
+        }}
+      />
     </div>
   )
 }
-

@@ -68,16 +68,7 @@ export default function AboutSection() {
             <p className="about-animate font-body text-[16px] font-normal leading-[1.7] text-[#212121] mt-6 max-w-[520px]">
               Look Like is Tirupur&apos;s destination for modern ladies wear. We bring you carefully curated kurtis from premium brands like Liva and Avaassa, alongside our signature leggings and palazzo collections. Every piece is chosen with care — because we believe great style should feel effortless.
             </p>
-            <div className="about-animate mt-8">
-              <a
-                href="https://wa.me/919344841180?text=Hi!%20I'd%20like%20to%20know%20more%20about%20Look%20Like."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center h-[48px] px-8 rounded-full bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-black transition-all duration-250 hover:bg-white hover:text-black"
-              >
-                Know More
-              </a>
-            </div>
+            <div className="about-animate mt-8" />
           </div>
         </div>
       </div>

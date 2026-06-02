@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -7,6 +8,7 @@ gsap.registerPlugin(ScrollTrigger)
 export default function ShopCTA() {
   const sectionRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -31,22 +33,24 @@ export default function ShopCTA() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="bg-white py-[140px] px-[30px] md:px-[60px]">
+    <section ref={sectionRef} className="bg-white py-24 sm:py-28 md:py-[140px] px-5 sm:px-8 md:px-[60px]">
       <div ref={contentRef} className="max-w-[1440px] mx-auto flex flex-col items-center text-center">
-        <h2 className="cta-animate font-display text-[48px] font-normal leading-[1.1] text-black max-w-[600px]">
-          Ready to Upgrade Your Wardrobe?
+        <span className="cta-animate font-body text-[11px] uppercase tracking-[0.4em] text-black/40 mb-5">
+          New Season
+        </span>
+        <h2 className="cta-animate font-display text-[36px] sm:text-[44px] md:text-[52px] font-normal leading-[1.08] text-black max-w-[640px] text-balance">
+          Ready to Upgrade Your <span className="italic font-medium">Wardrobe?</span>
         </h2>
-        <p className="cta-animate font-body text-[16px] font-normal text-black/50 mt-5">
-          Browse our latest collection and order via WhatsApp
+        <p className="cta-animate font-body text-[15px] sm:text-[16px] font-light text-black/55 mt-5 max-w-[440px]">
+          Browse our latest collection of premium ladies wear, crafted for everyday elegance.
         </p>
-        <a
-          href="https://wa.me/919344841180?text=Hi!%20I'm%20ready%20to%20shop%20from%20Look%20Like!"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="cta-animate mt-8 inline-flex items-center h-[52px] px-10 rounded-full bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-black transition-all duration-250 hover:bg-white hover:text-black"
+        <button
+          type="button"
+          onClick={() => navigate('/products')}
+          className="cta-animate mt-9 inline-flex items-center h-[54px] px-12 rounded-full bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.14em] border border-black transition-all duration-300 hover:bg-white hover:text-black hover:tracking-[0.18em]"
         >
-          SHOP NOW ON WHATSAPP
-        </a>
+          Shop Now
+        </button>
       </div>
     </section>
   )

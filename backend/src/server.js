@@ -1,8 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import cors from 'cors'
+import Razorpay from 'razorpay'
 import { z } from 'zod'
 
 const app = express()
@@ -18,6 +20,15 @@ app.use(
 const PORT = Number(process.env.PORT || 8080)
 const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), 'data')
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json')
+const ORDERS_FILE = path.join(DATA_DIR, 'orders.json')
+
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
+
+const razorpay =
+  RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET
+    ? new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET })
+    : null
 const FRONTEND_DIST_DIR =
   process.env.FRONTEND_DIST_DIR ||
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../app/dist')
@@ -47,12 +58,62 @@ const ProductCreateSchema = z.object({
 
 const ProductUpdateSchema = ProductCreateSchema.partial()
 
+const CartItemSchema = z.object({
+  productId: z.string().min(1),
+  name: z.string().min(1),
+  price: z.number().nonnegative(),
+  quantity: z.number().int().positive(),
+  size: z.string().min(1),
+  image: z.string().optional(),
+})
+
+const CustomerSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().min(10),
+  email: z.string().optional(),
+  address: z.string().min(3),
+  city: z.string().min(1),
+  state: z.string().optional(),
+  pincode: z.string().min(4),
+})
+
+const CreatePaymentSchema = z.object({
+  customer: CustomerSchema,
+  items: z.array(CartItemSchema).min(1),
+})
+
+const VerifyPaymentSchema = z.object({
+  orderId: z.string().min(1),
+  razorpay_order_id: z.string().min(1),
+  razorpay_payment_id: z.string().min(1),
+  razorpay_signature: z.string().min(1),
+})
+
+const OrderSchema = z.object({
+  id: z.string(),
+  customer: CustomerSchema,
+  items: z.array(CartItemSchema),
+  amount: z.number().nonnegative(),
+  currency: z.literal('INR'),
+  status: z.enum(['pending', 'paid', 'failed', 'cod']),
+  paymentMethod: z.enum(['online', 'cod']).optional(),
+  razorpayOrderId: z.string().optional(),
+  razorpayPaymentId: z.string().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+
+const CreateCodOrderSchema = z.object({
+  customer: CustomerSchema,
+  items: z.array(CartItemSchema).min(1),
+})
+
 function now() {
   return Date.now()
 }
 
-function id() {
-  return `p-${Math.random().toString(16).slice(2)}-${now()}`
+function id(prefix = 'p') {
+  return `${prefix}-${Math.random().toString(16).slice(2)}-${now()}`
 }
 
 async function ensureDataDir() {
@@ -184,7 +245,184 @@ async function writeProducts(next) {
   await writeJsonAtomic(PRODUCTS_FILE, parsed.data)
 }
 
+async function readOrders() {
+  await ensureDataDir()
+  const list = await readJson(ORDERS_FILE, [])
+  const parsed = z.array(OrderSchema).safeParse(list)
+  return parsed.success ? parsed.data : []
+}
+
+async function writeOrders(next) {
+  const parsed = z.array(OrderSchema).safeParse(next)
+  if (!parsed.success) throw new Error('Invalid order data')
+  await writeJsonAtomic(ORDERS_FILE, parsed.data)
+}
+
+function calcTotal(items) {
+  return items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }))
+
+app.get('/api/payments/config', (_req, res) => {
+  res.json({
+    enabled: Boolean(razorpay),
+    keyId: RAZORPAY_KEY_ID || null,
+  })
+})
+
+app.post('/api/payments/create-order', async (req, res) => {
+  if (!razorpay) {
+    res.status(503).json({ error: 'Payment gateway is not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.' })
+    return
+  }
+
+  const input = CreatePaymentSchema.safeParse(req.body)
+  if (!input.success) {
+    res.status(400).json({ error: 'Invalid payload', details: input.error.flatten() })
+    return
+  }
+
+  const amount = calcTotal(input.data.items)
+  if (amount <= 0) {
+    res.status(400).json({ error: 'Invalid order amount' })
+    return
+  }
+
+  const orderId = id('ord')
+  const t = now()
+  const customer = {
+    ...input.data.customer,
+    email: input.data.customer.email || undefined,
+  }
+
+  try {
+    const rzOrder = await razorpay.orders.create({
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      receipt: orderId,
+      notes: {
+        customer_name: customer.name,
+        customer_phone: customer.phone,
+      },
+    })
+
+    const pending = {
+      id: orderId,
+      customer,
+      items: input.data.items,
+      amount,
+      currency: 'INR',
+      status: 'pending',
+      paymentMethod: 'online',
+      razorpayOrderId: rzOrder.id,
+      createdAt: t,
+      updatedAt: t,
+    }
+
+    const orders = await readOrders()
+    await writeOrders([pending, ...orders])
+
+    res.status(201).json({
+      orderId,
+      amount,
+      currency: 'INR',
+      razorpayOrderId: rzOrder.id,
+      keyId: RAZORPAY_KEY_ID,
+    })
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Razorpay create order failed:', err)
+    res.status(500).json({ error: 'Could not create payment order' })
+  }
+})
+
+app.post('/api/payments/verify', async (req, res) => {
+  if (!RAZORPAY_KEY_SECRET) {
+    res.status(503).json({ error: 'Payment gateway is not configured' })
+    return
+  }
+
+  const input = VerifyPaymentSchema.safeParse(req.body)
+  if (!input.success) {
+    res.status(400).json({ error: 'Invalid payload', details: input.error.flatten() })
+    return
+  }
+
+  const expected = crypto
+    .createHmac('sha256', RAZORPAY_KEY_SECRET)
+    .update(`${input.data.razorpay_order_id}|${input.data.razorpay_payment_id}`)
+    .digest('hex')
+
+  if (expected !== input.data.razorpay_signature) {
+    res.status(400).json({ error: 'Invalid payment signature' })
+    return
+  }
+
+  const orders = await readOrders()
+  const idx = orders.findIndex((o) => o.id === input.data.orderId)
+  if (idx === -1) {
+    res.status(404).json({ error: 'Order not found' })
+    return
+  }
+
+  const t = now()
+  const updated = {
+    ...orders[idx],
+    status: 'paid',
+    paymentMethod: 'online',
+    razorpayPaymentId: input.data.razorpay_payment_id,
+    updatedAt: t,
+  }
+  const next = [...orders.slice(0, idx), updated, ...orders.slice(idx + 1)]
+  await writeOrders(next)
+
+  res.json({ ok: true, order: updated })
+})
+
+app.post('/api/orders/cod', async (req, res) => {
+  const input = CreateCodOrderSchema.safeParse(req.body)
+  if (!input.success) {
+    res.status(400).json({ error: 'Invalid payload', details: input.error.flatten() })
+    return
+  }
+
+  const amount = calcTotal(input.data.items)
+  if (amount <= 0) {
+    res.status(400).json({ error: 'Invalid order amount' })
+    return
+  }
+
+  const orderId = id('ord')
+  const t = now()
+  const customer = {
+    ...input.data.customer,
+    email: input.data.customer.email || undefined,
+  }
+
+  const order = {
+    id: orderId,
+    customer,
+    items: input.data.items,
+    amount,
+    currency: 'INR',
+    status: 'cod',
+    paymentMethod: 'cod',
+    createdAt: t,
+    updatedAt: t,
+  }
+
+  const orders = await readOrders()
+  await writeOrders([order, ...orders])
+
+  res.status(201).json({ ok: true, orderId, order })
+})
+
+app.get('/api/orders', async (_req, res) => {
+  const orders = await readOrders()
+  const visible = orders.filter((o) => o.status === 'paid' || o.status === 'cod')
+  res.json({ orders: visible })
+})
 
 app.get('/api/products', async (_req, res) => {
   const products = await readProducts()

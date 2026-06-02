@@ -7,6 +7,9 @@ export default function Hero() {
   const scrollIndicatorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+    if (reduceMotion) return
+
     const ctx = gsap.context(() => {
       gsap.fromTo(
         contentRef.current,
@@ -24,7 +27,7 @@ export default function Hero() {
   }, [])
 
   return (
-    <section ref={heroRef} className="relative w-full h-screen overflow-hidden">
+    <section ref={heroRef} className="relative w-full min-h-[100svh] overflow-hidden">
       {/* Video Background */}
       <video
         autoPlay
@@ -41,37 +44,41 @@ export default function Hero() {
       <div
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%)',
+          background:
+            'linear-gradient(to bottom, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.20) 40%, rgba(0,0,0,0.50) 100%)',
         }}
       />
 
       {/* Hero Content */}
       <div
         ref={contentRef}
-        className="relative z-10 flex flex-col items-center justify-center h-full text-center px-6"
+        className="relative z-10 flex flex-col items-center justify-center min-h-[100svh] w-full text-center px-5 sm:px-8"
       >
-        <h1
-          className="font-display text-white text-[36px] sm:text-[48px] md:text-[56px] font-normal leading-[1.1] tracking-[-0.02em] max-w-[700px]"
-        >
-          Effortless Style for Every Woman
+        <span className="font-body text-[11px] sm:text-[12px] uppercase tracking-[0.4em] text-white/70 mb-5">
+          Look Like · Tirupur
+        </span>
+        <h1 className="font-display text-white text-[38px] sm:text-[52px] md:text-[64px] font-normal leading-[1.05] tracking-[-0.02em] max-w-[820px] mx-auto text-balance">
+          Effortless Style for <span className="italic font-medium">Every Woman</span>
         </h1>
-        <p className="font-body text-white/90 text-[15px] font-normal leading-[1.6] max-w-[480px] mt-6">
+        <p className="font-body text-white/85 text-[15px] sm:text-[16px] font-light leading-[1.7] max-w-[520px] mt-6 mx-auto">
           Discover our curated collection of kurtis, leggings, and palazzos. Premium fabrics, timeless designs, delivered to your doorstep.
         </p>
-        <a
-          href="https://wa.me/919344841180?text=Hi!%20I'm%20interested%20in%20exploring%20your%20collection."
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-8 inline-flex items-center h-[48px] px-8 rounded-full bg-white text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] transition-all duration-250 hover:bg-black hover:text-white"
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById('products')
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+          className="mt-9 inline-flex items-center h-[52px] px-10 rounded-full bg-white text-black font-body text-[13px] font-medium uppercase tracking-[0.14em] transition-all duration-300 hover:bg-black hover:text-white hover:tracking-[0.18em]"
         >
           Explore Collection
-        </a>
+        </button>
       </div>
 
       {/* Scroll Indicator */}
       <div
         ref={scrollIndicatorRef}
-        className="absolute bottom-8 left-8 z-10 flex items-center gap-3"
+        className="absolute bottom-6 left-5 sm:bottom-8 sm:left-8 z-10 hidden sm:flex items-center gap-3"
       >
         <div className="relative w-[1px] h-[40px] bg-white/50">
           <div
