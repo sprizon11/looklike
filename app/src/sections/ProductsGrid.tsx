@@ -74,8 +74,7 @@ export default function ProductsGrid() {
           {products.map((product) => (
             <div
               key={product.id}
-              className="product-card group cursor-pointer"
-              onClick={() => goToProduct(product.id)}
+              className="product-card group"
             >
               <div className="relative overflow-hidden bg-[#f7f7f7] aspect-[3/4]">
                 <img
@@ -85,16 +84,14 @@ export default function ProductsGrid() {
                   decoding="async"
                   className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 />
-                <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 opacity-100 sm:opacity-0 sm:translate-y-[10px] transition-all duration-300 ease-out sm:group-hover:opacity-100 sm:group-hover:translate-y-0">
-                  <span className="inline-block bg-black text-white font-body text-[12px] font-medium uppercase tracking-[0.04em] px-5 py-[10px]">
-                    Quick View
-                  </span>
-                </div>
               </div>
               <div className="mt-3">
-                <h3 className="font-body text-[15px] font-medium text-[#212121]">
+                <button
+                  onClick={() => goToProduct(product.id)}
+                  className="font-body text-[15px] font-medium text-[#212121] text-left hover:underline underline-offset-4"
+                >
                   {product.name}
-                </h3>
+                </button>
                 <p className="font-body text-[14px] font-normal text-black/50 mt-1">
                   Rs. {product.price}
                 </p>

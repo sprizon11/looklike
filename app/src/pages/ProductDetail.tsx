@@ -4,13 +4,7 @@ import { ChevronLeft, Check, ShoppingBag } from 'lucide-react'
 import { useProducts } from '@/hooks/use-products'
 import { addToCart } from '@/lib/cart-store'
 
-const DEFAULT_COLORS = [
-  { name: 'Black', hex: '#1a1a1a' },
-  { name: 'White', hex: '#f5f5f5' },
-  { name: 'Beige', hex: '#d8cbb6' },
-  { name: 'Maroon', hex: '#6b1f2a' },
-  { name: 'Navy', hex: '#1f2a44' },
-]
+const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -19,19 +13,29 @@ export default function ProductDetail() {
 
   const product = useMemo(() => products.find((p) => p.id === id), [products, id])
 
+  const [selectedSize, setSelectedSize] = useState<string>('')
+  const [selectedColor, setSelectedColor] = useState<string>('')
+  const [quantity, setQuantity] = useState(1)
+  const [added, setAdded] = useState(false)
+
   const sizes = useMemo(() => {
     const raw = product?.size?.trim()
-    if (!raw) return ['Free Size']
+    if (!raw) return DEFAULT_SIZES
     return raw
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
   }, [product])
 
-  const [selectedSize, setSelectedSize] = useState<string>('')
-  const [selectedColor, setSelectedColor] = useState<string>('')
-  const [quantity, setQuantity] = useState(1)
-  const [added, setAdded] = useState(false)
+  const variants = useMemo(() => {
+    const list = product?.variants?.filter((v) => v.color && v.image) || []
+    if (list.length > 0) return list
+    return [{ color: 'Default', image: product?.image || '' }]
+  }, [product])
+
+  const activeColor = selectedColor || variants[0]?.color || 'Default'
+  const activeImage =
+    variants.find((v) => v.color === activeColor)?.image || product?.image || ''
 
   if (!product) {
     return (
@@ -50,12 +54,12 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     const size = selectedSize || sizes[0]
-    const color = selectedColor || DEFAULT_COLORS[0].name
+    const color = selectedColor || variants[0].color
     addToCart({
       productId: product.id,
       name: product.name,
       price: product.price,
-      image: product.image,
+      image: activeImage,
       size,
       color,
       quantity,
@@ -66,7 +70,7 @@ export default function ProductDetail() {
 
   const handleWhatsAppOrder = () => {
     const size = selectedSize || sizes[0]
-    const color = selectedColor || DEFAULT_COLORS[0].name
+    const color = selectedColor || variants[0].color
     const message = `Hi! I'd like to order:\n${product.name}\nSize: ${size}\nColor: ${color}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
     window.open(`https://wa.me/919344841180?text=${encodeURIComponent(message)}`, '_blank')
   }
@@ -86,7 +90,7 @@ export default function ProductDetail() {
           {/* Image */}
           <div className="bg-[#f7f7f7] overflow-hidden">
             <img
-              src={product.image}
+              src={activeImage}
               alt={product.name}
               className="w-full aspect-[3/4] object-cover"
             />
@@ -140,27 +144,20 @@ export default function ProductDetail() {
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Select Color
               </p>
-              <div className="flex flex-wrap gap-3 mt-3">
-                {DEFAULT_COLORS.map((color) => {
-                  const active = (selectedColor || DEFAULT_COLORS[0].name) === color.name
+              <div className="flex flex-wrap gap-2 mt-3">
+                {variants.map((v) => {
+                  const active = (selectedColor || variants[0].color) === v.color
                   return (
                     <button
-                      key={color.name}
-                      onClick={() => setSelectedColor(color.name)}
-                      aria-label={color.name}
-                      title={color.name}
-                      className={`relative w-9 h-9 rounded-full border transition-transform ${
-                        active ? 'border-black scale-110' : 'border-black/20 hover:scale-105'
+                      key={v.color}
+                      onClick={() => setSelectedColor(v.color)}
+                      className={`h-[42px] px-4 border font-body text-[13px] transition-colors ${
+                        active
+                          ? 'bg-black text-white border-black'
+                          : 'bg-white text-black border-black/15 hover:border-black/40'
                       }`}
-                      style={{ backgroundColor: color.hex }}
                     >
-                      {active && (
-                        <Check
-                          size={16}
-                          className="absolute inset-0 m-auto"
-                          color={color.name === 'White' || color.name === 'Beige' ? '#000' : '#fff'}
-                        />
-                      )}
+                      {v.color}
                     </button>
                   )
                 })}
