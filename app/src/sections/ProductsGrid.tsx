@@ -191,7 +191,12 @@ export default function ProductsGrid({
           <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             {visible.map((product) => (
               <div key={product.id} className="product-card group">
-                <div className="relative overflow-hidden bg-[#f7f7f7] aspect-[3/4]">
+                <button
+                  type="button"
+                  onClick={() => goToProduct(product.id)}
+                  className="relative block w-full overflow-hidden bg-[#f7f7f7] aspect-[3/4] cursor-pointer text-left"
+                  aria-label={`View ${product.name}`}
+                >
                   <img
                     src={product.image}
                     alt={product.name}
@@ -199,7 +204,7 @@ export default function ProductsGrid({
                     decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                   />
-                </div>
+                </button>
                 <div className="mt-3">
                   <button
                     onClick={() => goToProduct(product.id)}
