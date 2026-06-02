@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
@@ -18,7 +19,18 @@ app.use(
 )
 
 const PORT = Number(process.env.PORT || 8080)
-const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), 'data')
+
+// Monorepo root (parent of backend/) — paths must not depend on process.cwd()
+const MONOREPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+
+function resolveFromRoot(envPath, fallbackRelative) {
+  if (envPath) {
+    return path.isAbsolute(envPath) ? envPath : path.resolve(MONOREPO_ROOT, envPath)
+  }
+  return path.resolve(MONOREPO_ROOT, fallbackRelative)
+}
+
+const DATA_DIR = resolveFromRoot(process.env.DATA_DIR, 'backend/data')
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json')
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json')
 
@@ -29,9 +41,8 @@ const razorpay =
   RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET
     ? new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET })
     : null
-const FRONTEND_DIST_DIR =
-  process.env.FRONTEND_DIST_DIR ||
-  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../app/dist')
+const FRONTEND_DIST_DIR = resolveFromRoot(process.env.FRONTEND_DIST_DIR, 'app/dist')
+const FRONTEND_INDEX = path.join(FRONTEND_DIST_DIR, 'index.html')
 
 const ProductSchema = z.object({
   id: z.string(),
@@ -481,13 +492,24 @@ app.delete('/api/products/:id', async (req, res) => {
 })
 
 // Serve the frontend (single deployment)
-app.use(express.static(FRONTEND_DIST_DIR))
-app.get('/', async (_req, res) => {
-  res.sendFile(path.join(FRONTEND_DIST_DIR, 'index.html'))
-})
+if (!existsSync(FRONTEND_INDEX)) {
+  // eslint-disable-next-line no-console
+  console.error(`Frontend build missing at ${FRONTEND_DIST_DIR}. Run: npm run build`)
+} else {
+  app.use(express.static(FRONTEND_DIST_DIR))
+  app.get('/', (_req, res) => {
+    res.sendFile(FRONTEND_INDEX)
+  })
+  // HashRouter + direct paths: always return index.html for non-API routes
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.sendFile(FRONTEND_INDEX)
+  })
+}
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`API listening on :${PORT}`)
+  // eslint-disable-next-line no-console
+  console.log(`Serving frontend from ${FRONTEND_DIST_DIR}`)
 })
 
