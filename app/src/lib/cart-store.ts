@@ -62,6 +62,29 @@ export function addToCart(item: CartItem) {
   }
 }
 
+export function updateCartItem(
+  key: Pick<CartItem, 'productId' | 'size' | 'color'>,
+  patch: Partial<Pick<CartItem, 'quantity'>>
+) {
+  const current = readCart()
+  const next = current.map((i) => {
+    if (i.productId === key.productId && i.size === key.size && i.color === key.color) {
+      return { ...i, ...patch }
+    }
+    return i
+  })
+  writeCart(next.filter((i) => i.quantity > 0))
+}
+
+export function removeCartItem(key: Pick<CartItem, 'productId' | 'size' | 'color'>) {
+  const current = readCart()
+  writeCart(current.filter((i) => !(i.productId === key.productId && i.size === key.size && i.color === key.color)))
+}
+
+export function clearCart() {
+  writeCart([])
+}
+
 export function cartCount(): number {
   return readCart().reduce((sum, i) => sum + i.quantity, 0)
 }

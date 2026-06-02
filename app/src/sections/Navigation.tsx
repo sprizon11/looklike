@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router'
 import { ShoppingBag, Menu, X } from 'lucide-react'
 import { cartCount, subscribeCart } from '@/lib/cart-store'
 
 export default function Navigation() {
+  const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [count, setCount] = useState(0)
@@ -38,6 +40,11 @@ export default function Navigation() {
 
   const goToAdmin = () => {
     window.location.hash = '#/admin'
+    setMobileMenuOpen(false)
+  }
+
+  const goToCart = () => {
+    navigate('/cart')
     setMobileMenuOpen(false)
   }
 
@@ -93,7 +100,11 @@ export default function Navigation() {
           >
             ORDER ON WHATSAPP
           </a>
-          <button className={`relative p-2 transition-colors duration-400 ${scrolled ? 'text-black' : 'text-white'}`}>
+          <button
+            onClick={goToCart}
+            className={`relative p-2 transition-colors duration-400 ${scrolled ? 'text-black' : 'text-white'}`}
+            aria-label="Open cart"
+          >
             <ShoppingBag size={20} strokeWidth={1.5} />
             {count > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-black text-white text-[10px] font-medium flex items-center justify-center border border-white">
@@ -128,6 +139,12 @@ export default function Navigation() {
               className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2"
             >
               ADMIN
+            </button>
+            <button
+              onClick={goToCart}
+              className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2"
+            >
+              CART
             </button>
             <a
               href="https://wa.me/919344841180?text=Hi!%20I'm%20interested%20in%20your%20collection."

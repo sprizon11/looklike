@@ -144,20 +144,33 @@ export default function ProductDetail() {
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Select Color
               </p>
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-3 mt-3">
                 {variants.map((v) => {
                   const active = (selectedColor || variants[0].color) === v.color
                   return (
                     <button
                       key={v.color}
                       onClick={() => setSelectedColor(v.color)}
-                      className={`h-[42px] px-4 border font-body text-[13px] transition-colors ${
-                        active
-                          ? 'bg-black text-white border-black'
-                          : 'bg-white text-black border-black/15 hover:border-black/40'
+                      aria-label={v.color}
+                      title={v.color}
+                      className={`relative w-10 h-10 rounded-full border transition-transform ${
+                        active ? 'border-black scale-110' : 'border-black/20 hover:scale-105'
                       }`}
+                      style={{ backgroundColor: '#fff' }}
                     >
-                      {v.color}
+                      <span
+                        className="absolute inset-[3px] rounded-full overflow-hidden"
+                        style={{
+                          backgroundImage: `url(${v.image})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                        }}
+                      />
+                      {active && (
+                        <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-[11px]">
+                          ✓
+                        </span>
+                      )}
                     </button>
                   )
                 })}
