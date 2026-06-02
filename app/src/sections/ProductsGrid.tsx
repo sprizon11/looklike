@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useProducts } from '@/hooks/use-products'
@@ -10,6 +11,7 @@ export default function ProductsGrid() {
   const headerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const { products } = useProducts()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
@@ -48,9 +50,8 @@ export default function ProductsGrid() {
     return () => ctx.revert()
   }, [])
 
-  const handleWhatsAppOrder = (productName: string) => {
-    const message = `Hi! I'm interested in ordering the ${productName}. Can you share more details?`
-    window.open(`https://wa.me/919344841180?text=${encodeURIComponent(message)}`, '_blank')
+  const goToProduct = (productId: string) => {
+    navigate(`/product/${productId}`)
   }
 
   return (
@@ -74,7 +75,7 @@ export default function ProductsGrid() {
             <div
               key={product.id}
               className="product-card group cursor-pointer"
-              onClick={() => handleWhatsAppOrder(product.name)}
+              onClick={() => goToProduct(product.id)}
             >
               <div className="relative overflow-hidden bg-[#f7f7f7] aspect-[3/4]">
                 <img

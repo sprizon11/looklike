@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { ShoppingBag, Menu, X } from 'lucide-react'
+import { cartCount, subscribeCart } from '@/lib/cart-store'
 
 export default function Navigation() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [count, setCount] = useState(0)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -11,6 +13,11 @@ export default function Navigation() {
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    setCount(cartCount())
+    return subscribeCart(() => setCount(cartCount()))
   }, [])
 
   const navLinks = [
@@ -86,8 +93,13 @@ export default function Navigation() {
           >
             ORDER ON WHATSAPP
           </a>
-          <button className={`p-2 transition-colors duration-400 ${scrolled ? 'text-black' : 'text-white'}`}>
+          <button className={`relative p-2 transition-colors duration-400 ${scrolled ? 'text-black' : 'text-white'}`}>
             <ShoppingBag size={20} strokeWidth={1.5} />
+            {count > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-black text-white text-[10px] font-medium flex items-center justify-center border border-white">
+                {count}
+              </span>
+            )}
           </button>
           <button
             className={`md:hidden p-2 transition-colors duration-400 ${scrolled ? 'text-black' : 'text-white'}`}

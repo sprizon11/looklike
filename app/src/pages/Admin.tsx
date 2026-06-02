@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { useProducts } from '@/hooks/use-products'
 import type { Product } from '@/lib/products-store'
@@ -47,6 +49,7 @@ export default function Admin() {
   const navigate = useNavigate()
   const [authenticated, setAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [searchQuery, setSearchQuery] = useState('')
@@ -189,14 +192,24 @@ export default function Admin() {
               <label className="font-body text-[13px] font-medium uppercase tracking-[0.06em] text-black/60">
                 Password
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder="Enter admin password"
-                className="w-full mt-2 h-[48px] px-4 border border-black/10 font-body text-[14px] text-black placeholder:text-black/30 focus:outline-none focus:border-black/30 transition-colors"
-              />
+              <div className="relative mt-2">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  placeholder="Enter admin password"
+                  className="w-full h-[48px] pl-4 pr-12 border border-black/10 font-body text-[14px] text-black placeholder:text-black/30 focus:outline-none focus:border-black/30 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-black/40 hover:text-black transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} strokeWidth={1.5} /> : <Eye size={18} strokeWidth={1.5} />}
+                </button>
+              </div>
             </div>
             {error && (
               <p className="font-body text-[13px] text-red-500">{error}</p>
