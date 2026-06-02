@@ -2,45 +2,8 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { CartItem } from '@/lib/cart-store'
 import type { CheckoutCustomer } from '@/lib/payments-api'
-import { createCodOrder, createPaymentOrder, getPaymentConfig, verifyPayment } from '@/lib/payments-api'
+import { createCodOrder } from '@/lib/payments-api'
 import { clearCart } from '@/lib/cart-store'
-
-type RazorpayResponse = {
-  razorpay_order_id: string
-  razorpay_payment_id: string
-  razorpay_signature: string
-}
-
-type RazorpayOptions = {
-  key: string
-  amount: number
-  currency: string
-  name: string
-  description: string
-  order_id: string
-  prefill?: { name?: string; email?: string; contact?: string }
-  theme?: { color?: string }
-  handler: (response: RazorpayResponse) => void
-  modal?: { ondismiss?: () => void }
-}
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void }
-  }
-}
-
-function loadRazorpayScript() {
-  if (window.Razorpay) return Promise.resolve(true)
-  return new Promise<boolean>((resolve) => {
-    const script = document.createElement('script')
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-    script.async = true
-    script.onload = () => resolve(Boolean(window.Razorpay))
-    script.onerror = () => resolve(false)
-    document.body.appendChild(script)
-  })
-}
 
 type Props = {
   open: boolean
@@ -103,69 +66,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
     return customer
   }
 
-  const payOnline = async () => {
-    setError('')
-    const customer = buildCustomer()
-    if (!customer) return
-
-    setLoading(true)
-    try {
-      const config = await getPaymentConfig()
-      if (!config.enabled || !config.keyId) {
-        setError('Online payment is not configured yet. Please use Cash on Delivery.')
-        return
-      }
-
-      const order = await createPaymentOrder({ customer, items })
-      const loaded = await loadRazorpayScript()
-      if (!loaded || !window.Razorpay) {
-        setError('Could not load payment gateway. Please try again.')
-        return
-      }
-
-      const rzp = new window.Razorpay({
-        key: order.keyId,
-        amount: Math.round(order.amount * 100),
-        currency: order.currency,
-        name: 'Look Like',
-        description: `Order ${order.orderId}`,
-        order_id: order.razorpayOrderId,
-        prefill: {
-          name: customer.name,
-          email: customer.email,
-          contact: customer.phone,
-        },
-        theme: { color: '#000000' },
-        handler: async (response) => {
-          try {
-            await verifyPayment({
-              orderId: order.orderId,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            })
-            clearCart()
-            setForm(emptyForm)
-            onSuccess('Payment successful! Thank you for your order.')
-            onClose()
-          } catch (e) {
-            setError(e instanceof Error ? e.message : 'Payment verification failed')
-          }
-        },
-        modal: {
-          ondismiss: () => setLoading(false),
-        },
-      })
-
-      rzp.open()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start payment')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const payCod = async () => {
+  const placeOrder = async () => {
     setError('')
     const customer = buildCustomer()
     if (!customer) return
@@ -178,7 +79,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
       onSuccess('Order placed! Pay cash when your order is delivered.')
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not place COD order')
+      setError(e instanceof Error ? e.message : 'Could not place order')
     } finally {
       setLoading(false)
     }
@@ -192,7 +93,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="font-display text-[22px] font-normal text-black">Checkout</h2>
-              <p className="font-body text-[12px] text-black/40 mt-1">Total: Rs. {total}</p>
+              <p className="font-body text-[12px] text-black/40 mt-1">Total: Rs. {total} · Cash on Delivery</p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-black/[0.04] transition-colors" aria-label="Close">
               <X size={18} className="text-black/50" />
@@ -282,21 +183,13 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
             <button
               type="button"
               disabled={loading}
-              onClick={payOnline}
+              onClick={placeOrder}
               className="w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors disabled:opacity-60"
             >
-              {loading ? 'Please wait…' : 'Pay Online (Razorpay)'}
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={payCod}
-              className="w-full h-[48px] border border-black text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/[0.04] transition-colors disabled:opacity-60"
-            >
-              Cash on Delivery
+              {loading ? 'Please wait…' : 'Place Order (Cash on Delivery)'}
             </button>
             <p className="font-body text-[12px] text-black/40 text-center">
-              Pay online with UPI/cards, or choose COD and pay when your order arrives.
+              Pay when your order is delivered. Online payment coming soon.
             </p>
           </div>
         </div>

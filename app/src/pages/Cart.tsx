@@ -140,7 +140,7 @@ export default function Cart() {
                 Order Now
               </button>
               <p className="mt-3 font-body text-[12px] text-black/40">
-                Enter your delivery details and pay securely online with Razorpay.
+                Enter your delivery details and place a Cash on Delivery order.
               </p>
             </div>
           </div>

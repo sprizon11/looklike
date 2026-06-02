@@ -37,8 +37,8 @@ Open `http://localhost:8080`
    - **Environment variables:**
      - `FRONTEND_DIST_DIR` = `./app/dist`
      - `DATA_DIR` = `./backend/data`
-     - `RAZORPAY_KEY_ID` = your Razorpay key
-     - `RAZORPAY_KEY_SECRET` = your Razorpay secret
 4. For persistent products/orders across deploys, add a **Render Disk** mounted at `/opt/render/project/src/backend/data` and set `DATA_DIR` to that path.
+
+Online payment (Razorpay) is optional and can be enabled later by adding `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in Render.
 
 Admin: `https://your-app.onrender.com/#/admin` (password: `admin123` — change in `app/src/pages/Admin.tsx` before going live).
