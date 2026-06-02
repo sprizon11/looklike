@@ -14,7 +14,6 @@ export default function ProductDetail() {
   const product = useMemo(() => products.find((p) => p.id === id), [products, id])
 
   const [selectedSize, setSelectedSize] = useState<string>('')
-  const [selectedColor, setSelectedColor] = useState<string>('')
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
 
@@ -27,15 +26,7 @@ export default function ProductDetail() {
       .filter(Boolean)
   }, [product])
 
-  const variants = useMemo(() => {
-    const list = product?.variants?.filter((v) => v.color && v.image) || []
-    if (list.length > 0) return list
-    return [{ color: '#000000', label: 'Default', image: product?.image || '' }]
-  }, [product])
-
-  const activeColor = selectedColor || variants[0]?.color || '#000000'
-  const activeImage =
-    variants.find((v) => v.color === activeColor)?.image || product?.image || ''
+  const activeImage = product?.image || ''
 
   if (!product) {
     return (
@@ -54,14 +45,13 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     const size = selectedSize || sizes[0]
-    const color = selectedColor || variants[0].color
     addToCart({
       productId: product.id,
       name: product.name,
       price: product.price,
       image: activeImage,
       size,
-      color,
+      color: '',
       quantity,
     })
     setAdded(true)
@@ -70,8 +60,7 @@ export default function ProductDetail() {
 
   const handleWhatsAppOrder = () => {
     const size = selectedSize || sizes[0]
-    const color = selectedColor || variants[0].color
-    const message = `Hi! I'd like to order:\n${product.name}\nSize: ${size}\nColor: ${color}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
+    const message = `Hi! I'd like to order:\n${product.name}\nSize: ${size}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
     window.open(`https://wa.me/919344841180?text=${encodeURIComponent(message)}`, '_blank')
   }
 
@@ -133,39 +122,6 @@ export default function ProductDetail() {
                       }`}
                     >
                       {size}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Colors */}
-            <div className="mt-7">
-              <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
-                Select Color
-              </p>
-              <div className="flex flex-wrap gap-3 mt-3">
-                {variants.map((v) => {
-                  const active = (selectedColor || variants[0].color) === v.color
-                  const checkColor = v.color.toLowerCase() === '#ffffff' ? '#000' : '#fff'
-                  return (
-                    <button
-                      key={`${v.color}-${v.label || ''}`}
-                      onClick={() => setSelectedColor(v.color)}
-                      aria-label={v.label || v.color}
-                      title={v.label || v.color}
-                      className={`relative w-10 h-10 rounded-full border transition-transform ${
-                        active ? 'border-black scale-110' : 'border-black/20 hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: v.color }}
-                    >
-                      {active && (
-                        <span className="absolute inset-0 rounded-full flex items-center justify-center text-[14px] font-medium"
-                          style={{ color: checkColor }}
-                        >
-                          ✓
-                        </span>
-                      )}
                     </button>
                   )
                 })}

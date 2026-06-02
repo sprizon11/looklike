@@ -18,7 +18,7 @@ export default function Cart() {
     if (items.length === 0) return
     const lines = items.map(
       (i) =>
-        `- ${i.name} | Size: ${i.size} | Colour: ${i.color} | Qty: ${i.quantity} | Rs. ${i.price}`
+        `- ${i.name} | Size: ${i.size} | Qty: ${i.quantity} | Rs. ${i.price}`
     )
     const message = `Hi! I'd like to order:\\n\\n${lines.join('\\n')}\\n\\nTotal: Rs. ${total}`
     window.open(`https://wa.me/919344841180?text=${encodeURIComponent(message)}`, '_blank')
@@ -72,7 +72,7 @@ export default function Cart() {
                         <div>
                           <p className="font-body text-[14px] font-medium text-black">{i.name}</p>
                           <p className="font-body text-[12px] text-black/50 mt-1">
-                            Size: {i.size} · Colour: {i.color}
+                            Size: {i.size}
                           </p>
                           <p className="font-body text-[13px] text-black/60 mt-2">Rs. {i.price}</p>
                         </div>

@@ -1,11 +1,5 @@
 export type ProductCategory = 'Kurti' | 'Leggings' | 'Palazzo' | string
 
-export type ProductColorVariant = {
-  color: string // hex like #000000
-  label?: string // optional name like "Black"
-  image: string
-}
-
 export type Product = {
   id: string
   name: string
@@ -15,7 +9,6 @@ export type Product = {
   image: string
   size?: string
   description?: string
-  variants?: ProductColorVariant[]
   createdAt: number
   updatedAt: number
 }
@@ -49,9 +42,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Soft, breathable fabric that feels light on the skin. A clean silhouette that looks great from day to night. Easy to style with leggings or palazzos.',
-      variants: [
-        { color: 'Teal', image: '/images/product-kurti-1.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -65,9 +55,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Premium finish with a comfortable fit. Designed to keep its shape and color wash after wash. Perfect for everyday elegance.',
-      variants: [
-        { color: 'Coral', image: '/images/product-kurti-2.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -81,9 +68,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Comfort stretch that moves with you all day. Soft waistband for a smooth fit. Great for daily wear and long hours.',
-      variants: [
-        { color: 'Black', image: '/images/product-leggings-1.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -97,9 +81,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Lightweight and flowy for all-day comfort. A flattering drape that pairs beautifully with kurtis. Ideal for casual and festive looks.',
-      variants: [
-        { color: 'Cream', image: '/images/product-palazzo-1.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -113,9 +94,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Everyday print with a comfortable, easy fit. Lightweight feel that’s perfect for warm days. Style it up or keep it simple.',
-      variants: [
-        { color: 'Blue', image: '/images/kurti-various-1.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -129,9 +107,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Elegant embroidery with a premium look. Comfortable fit that’s easy to wear for occasions. A statement piece for celebrations.',
-      variants: [
-        { color: 'Red', image: '/images/kurti-various-2.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -145,9 +120,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Soft cotton feel with everyday durability. Comfortable stretch and a secure waistband. Made for regular use and easy styling.',
-      variants: [
-        { color: 'Navy', image: '/images/leggings-various-1.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -161,9 +133,6 @@ function defaultProducts(): Product[] {
       size: 'XS, S, M, L, XL, XXL',
       description:
         'Clean solid look with a flattering flare. Comfortable fabric for long wear. Pairs well with both casual and festive tops.',
-      variants: [
-        { color: 'Olive', image: '/images/palazzo-various-1.jpg' },
-      ],
       createdAt: t,
       updatedAt: t,
     },

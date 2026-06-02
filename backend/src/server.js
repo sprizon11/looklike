@@ -31,15 +31,6 @@ const ProductSchema = z.object({
   image: z.string().min(1),
   size: z.string().optional(),
   description: z.string().optional(),
-  variants: z
-    .array(
-      z.object({
-        color: z.string().min(1),
-        label: z.string().min(1).optional(),
-        image: z.string().min(1),
-      })
-    )
-    .optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
@@ -52,15 +43,6 @@ const ProductCreateSchema = z.object({
   image: z.string().min(1),
   size: z.string().optional(),
   description: z.string().optional(),
-  variants: z
-    .array(
-      z.object({
-        color: z.string().min(1),
-        label: z.string().min(1).optional(),
-        image: z.string().min(1),
-      })
-    )
-    .optional(),
 })
 
 const ProductUpdateSchema = ProductCreateSchema.partial()

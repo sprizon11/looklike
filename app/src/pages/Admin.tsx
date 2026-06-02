@@ -64,8 +64,7 @@ export default function Admin() {
     stock: '0',
     size: '',
     description: '',
-    image: '' as string, // base image (fallback)
-    variants: [] as { color: string; label: string; image: string }[],
+    image: '' as string,
   })
 
   const toDataUrl = (file: File) => {
@@ -100,7 +99,6 @@ export default function Admin() {
       size: '',
       description: '',
       image: '',
-      variants: [],
     })
     setProductModalOpen(true)
   }
@@ -116,7 +114,6 @@ export default function Admin() {
       image: p.image,
       size: p.size || '',
       description: p.description || '',
-      variants: (p.variants || []).map((v) => ({ color: v.color, label: v.label || '', image: v.image })),
     })
     setProductModalOpen(true)
   }
@@ -135,9 +132,6 @@ export default function Admin() {
     const image = productForm.image.trim()
     const size = productForm.size.trim()
     const description = productForm.description.trim()
-    const variants = productForm.variants
-      .map((v) => ({ color: v.color.trim(), label: v.label.trim() || undefined, image: v.image.trim() }))
-      .filter((v) => v.color && v.image)
 
     if (!name) {
       setProductError('Product name is required')
@@ -151,16 +145,16 @@ export default function Admin() {
       setProductError('Stock must be a valid number')
       return
     }
-    if (!image && variants.length === 0) {
-      setProductError('Please upload an image (or add a color image)')
+    if (!image) {
+      setProductError('Please upload an image')
       return
     }
 
     setProductError('')
     if (editingProduct) {
-      await updateProduct(editingProduct.id, { name, category, price, stock, image: image || variants[0].image, size, description, variants })
+      await updateProduct(editingProduct.id, { name, category, price, stock, image, size, description })
     } else {
-      await addProduct({ name, category, price, stock, image: image || variants[0].image, size, description, variants })
+      await addProduct({ name, category, price, stock, image, size, description })
     }
     closeProductModal()
   }
@@ -702,101 +696,6 @@ export default function Admin() {
                   <p className="font-body text-[12px] text-black/40">
                     {productForm.image ? 'Image selected' : 'No image selected'}
                   </p>
-                </div>
-              </div>
-
-              <div className="border-t border-black/[0.06] pt-4">
-                <div className="flex items-center justify-between">
-                  <p className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
-                    Colours (each with image)
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setProductForm((s) => ({
-                        ...s,
-                        variants: [...s.variants, { color: '#000000', label: '', image: '' }],
-                      }))
-                    }
-                    className="h-[34px] px-3 border border-black/10 font-body text-[12px] uppercase tracking-[0.06em] text-black/60 hover:text-black hover:border-black/30 transition-colors"
-                  >
-                    Add Colour
-                  </button>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {productForm.variants.map((v, idx) => (
-                    <div
-                      key={idx}
-                      className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-center border border-black/[0.06] p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="color"
-                          value={v.color}
-                          onChange={(e) =>
-                            setProductForm((s) => {
-                              const next = [...s.variants]
-                              next[idx] = { ...next[idx], color: e.target.value }
-                              return { ...s, variants: next }
-                            })
-                          }
-                          className="w-[46px] h-[42px] border border-black/10 bg-white p-1"
-                          aria-label="Pick colour"
-                        />
-                        <input
-                          value={v.label}
-                          onChange={(e) =>
-                            setProductForm((s) => {
-                              const next = [...s.variants]
-                              next[idx] = { ...next[idx], label: e.target.value }
-                              return { ...s, variants: next }
-                            })
-                          }
-                          className="h-[42px] flex-1 px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                          placeholder="Colour name (optional)"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="font-body text-[13px]"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            const dataUrl = await toDataUrl(file)
-                            setProductForm((s) => {
-                              const next = [...s.variants]
-                              next[idx] = { ...next[idx], image: dataUrl }
-                              return { ...s, variants: next }
-                            })
-                          }}
-                        />
-                        <div className="w-12 h-12 bg-black/[0.04] border border-black/[0.06] overflow-hidden shrink-0">
-                          {v.image ? (
-                            <img src={v.image} alt={v.label || 'Variant'} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full" />
-                          )}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setProductForm((s) => ({
-                            ...s,
-                            variants: s.variants.filter((_, i) => i !== idx),
-                          }))
-                        }
-                        className="h-[42px] px-3 border border-black/10 font-body text-[12px] uppercase tracking-[0.06em] text-black/60 hover:text-black hover:border-black/30 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
                 </div>
               </div>
 
