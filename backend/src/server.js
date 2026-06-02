@@ -35,6 +35,7 @@ const ProductSchema = z.object({
     .array(
       z.object({
         color: z.string().min(1),
+        label: z.string().min(1).optional(),
         image: z.string().min(1),
       })
     )
@@ -55,6 +56,7 @@ const ProductCreateSchema = z.object({
     .array(
       z.object({
         color: z.string().min(1),
+        label: z.string().min(1).optional(),
         image: z.string().min(1),
       })
     )

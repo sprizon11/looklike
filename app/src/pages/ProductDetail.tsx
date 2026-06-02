@@ -30,10 +30,10 @@ export default function ProductDetail() {
   const variants = useMemo(() => {
     const list = product?.variants?.filter((v) => v.color && v.image) || []
     if (list.length > 0) return list
-    return [{ color: 'Default', image: product?.image || '' }]
+    return [{ color: '#000000', label: 'Default', image: product?.image || '' }]
   }, [product])
 
-  const activeColor = selectedColor || variants[0]?.color || 'Default'
+  const activeColor = selectedColor || variants[0]?.color || '#000000'
   const activeImage =
     variants.find((v) => v.color === activeColor)?.image || product?.image || ''
 
@@ -147,27 +147,22 @@ export default function ProductDetail() {
               <div className="flex flex-wrap gap-3 mt-3">
                 {variants.map((v) => {
                   const active = (selectedColor || variants[0].color) === v.color
+                  const checkColor = v.color.toLowerCase() === '#ffffff' ? '#000' : '#fff'
                   return (
                     <button
-                      key={v.color}
+                      key={`${v.color}-${v.label || ''}`}
                       onClick={() => setSelectedColor(v.color)}
-                      aria-label={v.color}
-                      title={v.color}
+                      aria-label={v.label || v.color}
+                      title={v.label || v.color}
                       className={`relative w-10 h-10 rounded-full border transition-transform ${
                         active ? 'border-black scale-110' : 'border-black/20 hover:scale-105'
                       }`}
-                      style={{ backgroundColor: '#fff' }}
+                      style={{ backgroundColor: v.color }}
                     >
-                      <span
-                        className="absolute inset-[3px] rounded-full overflow-hidden"
-                        style={{
-                          backgroundImage: `url(${v.image})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                        }}
-                      />
                       {active && (
-                        <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-[11px]">
+                        <span className="absolute inset-0 rounded-full flex items-center justify-center text-[14px] font-medium"
+                          style={{ color: checkColor }}
+                        >
                           ✓
                         </span>
                       )}

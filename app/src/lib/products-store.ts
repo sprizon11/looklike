@@ -1,7 +1,8 @@
 export type ProductCategory = 'Kurti' | 'Leggings' | 'Palazzo' | string
 
 export type ProductColorVariant = {
-  color: string
+  color: string // hex like #000000
+  label?: string // optional name like "Black"
   image: string
 }
 

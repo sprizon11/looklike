@@ -65,7 +65,7 @@ export default function Admin() {
     size: '',
     description: '',
     image: '' as string, // base image (fallback)
-    variants: [] as { color: string; image: string }[],
+    variants: [] as { color: string; label: string; image: string }[],
   })
 
   const toDataUrl = (file: File) => {
@@ -116,7 +116,7 @@ export default function Admin() {
       image: p.image,
       size: p.size || '',
       description: p.description || '',
-      variants: (p.variants || []).map((v) => ({ color: v.color, image: v.image })),
+      variants: (p.variants || []).map((v) => ({ color: v.color, label: v.label || '', image: v.image })),
     })
     setProductModalOpen(true)
   }
@@ -136,7 +136,7 @@ export default function Admin() {
     const size = productForm.size.trim()
     const description = productForm.description.trim()
     const variants = productForm.variants
-      .map((v) => ({ color: v.color.trim(), image: v.image.trim() }))
+      .map((v) => ({ color: v.color.trim(), label: v.label.trim() || undefined, image: v.image.trim() }))
       .filter((v) => v.color && v.image)
 
     if (!name) {
@@ -588,7 +588,8 @@ export default function Admin() {
             onClick={closeProductModal}
             aria-label="Close modal"
           />
-          <div className="relative w-full max-w-[520px] bg-white border border-black/[0.12] p-6">
+          <div className="relative w-full max-w-[520px] bg-white border border-black/[0.12] max-h-[85vh] overflow-y-auto">
+            <div className="p-6">
             <div className="flex items-start justify-between gap-6">
               <div>
                 <h3 className="font-display text-[22px] font-normal text-black">
@@ -714,7 +715,7 @@ export default function Admin() {
                     onClick={() =>
                       setProductForm((s) => ({
                         ...s,
-                        variants: [...s.variants, { color: '', image: '' }],
+                        variants: [...s.variants, { color: '#000000', label: '', image: '' }],
                       }))
                     }
                     className="h-[34px] px-3 border border-black/10 font-body text-[12px] uppercase tracking-[0.06em] text-black/60 hover:text-black hover:border-black/30 transition-colors"
@@ -726,18 +727,33 @@ export default function Admin() {
                 <div className="mt-4 space-y-3">
                   {productForm.variants.map((v, idx) => (
                     <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-center">
-                      <input
-                        value={v.color}
-                        onChange={(e) =>
-                          setProductForm((s) => {
-                            const next = [...s.variants]
-                            next[idx] = { ...next[idx], color: e.target.value }
-                            return { ...s, variants: next }
-                          })
-                        }
-                        className="h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                        placeholder="Colour name (e.g. Black)"
-                      />
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={v.color}
+                          onChange={(e) =>
+                            setProductForm((s) => {
+                              const next = [...s.variants]
+                              next[idx] = { ...next[idx], color: e.target.value }
+                              return { ...s, variants: next }
+                            })
+                          }
+                          className="w-[46px] h-[42px] border border-black/10 bg-white p-1"
+                          aria-label="Pick colour"
+                        />
+                        <input
+                          value={v.label}
+                          onChange={(e) =>
+                            setProductForm((s) => {
+                              const next = [...s.variants]
+                              next[idx] = { ...next[idx], label: e.target.value }
+                              return { ...s, variants: next }
+                            })
+                          }
+                          className="h-[42px] flex-1 px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                          placeholder="Colour name (optional)"
+                        />
+                      </div>
 
                       <div className="flex items-center gap-3">
                         <input
@@ -757,7 +773,7 @@ export default function Admin() {
                         />
                         <div className="w-10 h-10 bg-black/[0.04] border border-black/[0.06] overflow-hidden">
                           {v.image ? (
-                            <img src={v.image} alt={v.color || 'Variant'} className="w-full h-full object-cover" />
+                            <img src={v.image} alt={v.label || 'Variant'} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full" />
                           )}
@@ -797,6 +813,7 @@ export default function Admin() {
               >
                 {editingProduct ? 'Save' : 'Add'}
               </button>
+            </div>
             </div>
           </div>
         </div>
