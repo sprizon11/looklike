@@ -59,8 +59,19 @@ export default function Admin() {
     category: 'Kurti',
     price: '0',
     stock: '0',
-    image: '/images/product-kurti-1.jpg',
+    size: '',
+    description: '',
+    image: '' as string, // data URL or path
   })
+
+  const toDataUrl = (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('Failed to read image'))
+      reader.readAsDataURL(file)
+    })
+  }
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -82,7 +93,9 @@ export default function Admin() {
       category: 'Kurti',
       price: '0',
       stock: '0',
-      image: '/images/product-kurti-1.jpg',
+      size: '',
+      description: '',
+      image: '',
     })
     setProductModalOpen(true)
   }
@@ -96,6 +109,8 @@ export default function Admin() {
       price: String(p.price),
       stock: String(p.stock),
       image: p.image,
+      size: p.size || '',
+      description: p.description || '',
     })
     setProductModalOpen(true)
   }
@@ -106,12 +121,14 @@ export default function Admin() {
     setProductError('')
   }
 
-  const submitProduct = () => {
+  const submitProduct = async () => {
     const name = productForm.name.trim()
     const category = productForm.category.trim() || 'Other'
     const price = Number(productForm.price)
     const stock = Number(productForm.stock)
-    const image = productForm.image.trim() || '/images/product-kurti-1.jpg'
+    const image = productForm.image.trim()
+    const size = productForm.size.trim()
+    const description = productForm.description.trim()
 
     if (!name) {
       setProductError('Product name is required')
@@ -125,12 +142,16 @@ export default function Admin() {
       setProductError('Stock must be a valid number')
       return
     }
+    if (!image) {
+      setProductError('Please upload a product image')
+      return
+    }
 
     setProductError('')
     if (editingProduct) {
-      updateProduct(editingProduct.id, { name, category, price, stock, image })
+      await updateProduct(editingProduct.id, { name, category, price, stock, image, size, description })
     } else {
-      addProduct({ name, category, price, stock, image })
+      await addProduct({ name, category, price, stock, image, size, description })
     }
     closeProductModal()
   }
@@ -612,13 +633,55 @@ export default function Admin() {
                   />
                 </div>
                 <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Image URL</label>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Size</label>
                   <input
-                    value={productForm.image}
-                    onChange={(e) => setProductForm((s) => ({ ...s, image: e.target.value }))}
+                    value={productForm.size}
+                    onChange={(e) => setProductForm((s) => ({ ...s, size: e.target.value }))}
                     className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="/images/product-kurti-1.jpg"
+                    placeholder="S, M, L, XL"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Description</label>
+                <textarea
+                  value={productForm.description}
+                  onChange={(e) => setProductForm((s) => ({ ...s, description: e.target.value }))}
+                  rows={3}
+                  className="w-full mt-1 px-3 py-2 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30 resize-none"
+                  placeholder="Write a short product description..."
+                />
+              </div>
+
+              <div>
+                <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Image Upload</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full mt-2 font-body text-[13px]"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const dataUrl = await toDataUrl(file)
+                    setProductForm((s) => ({ ...s, image: dataUrl }))
+                  }}
+                />
+                <div className="mt-3 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-black/[0.04] border border-black/[0.06] overflow-hidden">
+                    {productForm.image ? (
+                      <img
+                        src={productForm.image}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full" />
+                    )}
+                  </div>
+                  <p className="font-body text-[12px] text-black/40">
+                    {productForm.image ? 'Image selected' : 'No image selected'}
+                  </p>
                 </div>
               </div>
 

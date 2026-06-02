@@ -42,6 +42,8 @@ export async function apiAddProduct(input: {
   price: number
   stock: number
   image: string
+  size?: string
+  description?: string
 }): Promise<Product> {
   const res = await apiFetch('/api/products', { method: 'POST', body: JSON.stringify(input) })
   const json = (await res.json()) as { product: Product }
@@ -56,6 +58,8 @@ export async function apiUpdateProduct(
     price: number
     stock: number
     image: string
+    size: string
+    description: string
   }>
 ): Promise<Product> {
   const res = await apiFetch(`/api/products/${encodeURIComponent(id)}`, {

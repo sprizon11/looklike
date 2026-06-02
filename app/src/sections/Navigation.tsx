@@ -29,6 +29,11 @@ export default function Navigation() {
     setMobileMenuOpen(false)
   }
 
+  const goToAdmin = () => {
+    window.location.hash = '#/admin'
+    setMobileMenuOpen(false)
+  }
+
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 h-[60px] flex items-center transition-all duration-400 ${
@@ -106,6 +111,12 @@ export default function Navigation() {
                 {link.label}
               </button>
             ))}
+            <button
+              onClick={goToAdmin}
+              className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2"
+            >
+              ADMIN
+            </button>
             <a
               href="https://wa.me/919344841180?text=Hi!%20I'm%20interested%20in%20your%20collection."
               target="_blank"

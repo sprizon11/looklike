@@ -7,6 +7,8 @@ export type Product = {
   price: number
   stock: number
   image: string
+  size?: string
+  description?: string
   createdAt: number
   updatedAt: number
 }
@@ -37,6 +39,8 @@ function defaultProducts(): Product[] {
       price: 599,
       stock: 24,
       image: '/images/product-kurti-1.jpg',
+      size: 'S, M, L, XL',
+      description: 'Soft fabric with an easy, flattering fit.',
       createdAt: t,
       updatedAt: t,
     },
@@ -47,6 +51,8 @@ function defaultProducts(): Product[] {
       price: 699,
       stock: 18,
       image: '/images/product-kurti-2.jpg',
+      size: 'S, M, L, XL',
+      description: 'Designer kurti with premium finish.',
       createdAt: t,
       updatedAt: t,
     },
@@ -57,6 +63,8 @@ function defaultProducts(): Product[] {
       price: 299,
       stock: 45,
       image: '/images/product-leggings-1.jpg',
+      size: 'Free Size',
+      description: 'Comfort stretch for daily wear.',
       createdAt: t,
       updatedAt: t,
     },
@@ -67,6 +75,8 @@ function defaultProducts(): Product[] {
       price: 399,
       stock: 32,
       image: '/images/product-palazzo-1.jpg',
+      size: 'M, L, XL',
+      description: 'Lightweight palazzo pants for all-day comfort.',
       createdAt: t,
       updatedAt: t,
     },
@@ -77,6 +87,8 @@ function defaultProducts(): Product[] {
       price: 499,
       stock: 15,
       image: '/images/kurti-various-1.jpg',
+      size: 'S, M, L',
+      description: 'Printed casual kurti for everyday style.',
       createdAt: t,
       updatedAt: t,
     },
@@ -87,6 +99,8 @@ function defaultProducts(): Product[] {
       price: 899,
       stock: 8,
       image: '/images/kurti-various-2.jpg',
+      size: 'M, L, XL',
+      description: 'Embroidered party wear kurti.',
       createdAt: t,
       updatedAt: t,
     },
@@ -97,6 +111,8 @@ function defaultProducts(): Product[] {
       price: 249,
       stock: 56,
       image: '/images/leggings-various-1.jpg',
+      size: 'Free Size',
+      description: 'Cotton leggings designed for comfort.',
       createdAt: t,
       updatedAt: t,
     },
@@ -107,6 +123,8 @@ function defaultProducts(): Product[] {
       price: 449,
       stock: 21,
       image: '/images/palazzo-various-1.jpg',
+      size: 'M, L, XL',
+      description: 'Solid flared palazzo with a clean silhouette.',
       createdAt: t,
       updatedAt: t,
     },

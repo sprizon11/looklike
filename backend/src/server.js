@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 const app = express()
 
-app.use(express.json({ limit: '2mb' }))
+app.use(express.json({ limit: '10mb' }))
 app.use(
   cors({
     origin: true,
@@ -29,6 +29,8 @@ const ProductSchema = z.object({
   price: z.number().nonnegative(),
   stock: z.number().int().nonnegative(),
   image: z.string().min(1),
+  size: z.string().optional(),
+  description: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
@@ -39,6 +41,8 @@ const ProductCreateSchema = z.object({
   price: z.number().nonnegative(),
   stock: z.number().int().nonnegative(),
   image: z.string().min(1),
+  size: z.string().optional(),
+  description: z.string().optional(),
 })
 
 const ProductUpdateSchema = ProductCreateSchema.partial()
