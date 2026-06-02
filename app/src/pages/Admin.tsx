@@ -726,7 +726,10 @@ export default function Admin() {
 
                 <div className="mt-4 space-y-3">
                   {productForm.variants.map((v, idx) => (
-                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-center">
+                    <div
+                      key={idx}
+                      className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-center border border-black/[0.06] p-3"
+                    >
                       <div className="flex items-center gap-3">
                         <input
                           type="color"
@@ -771,7 +774,7 @@ export default function Admin() {
                             })
                           }}
                         />
-                        <div className="w-10 h-10 bg-black/[0.04] border border-black/[0.06] overflow-hidden">
+                        <div className="w-12 h-12 bg-black/[0.04] border border-black/[0.06] overflow-hidden shrink-0">
                           {v.image ? (
                             <img src={v.image} alt={v.label || 'Variant'} className="w-full h-full object-cover" />
                           ) : (
@@ -790,7 +793,7 @@ export default function Admin() {
                         }
                         className="h-[42px] px-3 border border-black/10 font-body text-[12px] uppercase tracking-[0.06em] text-black/60 hover:text-black hover:border-black/30 transition-colors"
                       >
-                        Remove
+                        Delete
                       </button>
                     </div>
                   ))}
