@@ -13,6 +13,6 @@ services:
       - key: DATA_DIR
         value: ./backend/data
       - key: UPI_ID
-        sync: false
+        value: 7695921699@okbizaxis
       - key: UPI_PAYEE_NAME
         value: Look Like
