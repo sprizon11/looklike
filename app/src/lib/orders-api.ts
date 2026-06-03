@@ -30,10 +30,10 @@ export type AdminOrder = {
   updatedAt: number
 }
 
+import { getApiBase } from '@/lib/api-base'
+
 function apiBase() {
-  const raw = import.meta.env.VITE_API_BASE_URL as string | undefined
-  if (raw) return raw.replace(/\/+$/, '')
-  return ''
+  return getApiBase()
 }
 
 export async function apiListOrders(): Promise<AdminOrder[]> {

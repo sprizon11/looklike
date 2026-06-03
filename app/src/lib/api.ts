@@ -1,19 +1,12 @@
 import type { Product } from '@/lib/products-store'
-
-function baseUrl() {
-  const raw = import.meta.env.VITE_API_BASE_URL as string | undefined
-  if (!raw) return null
-  return raw.replace(/\/+$/, '')
-}
+import { getApiBase, hasBackendApi } from '@/lib/api-base'
 
 export function hasApi() {
-  return Boolean(baseUrl())
+  return hasBackendApi()
 }
 
 async function apiFetch(path: string, init?: RequestInit) {
-  const base = baseUrl()
-  if (!base) throw new Error('API base URL is not configured')
-
+  const base = getApiBase()
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {
@@ -73,4 +66,3 @@ export async function apiUpdateProduct(
 export async function apiDeleteProduct(id: string): Promise<void> {
   await apiFetch(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
-

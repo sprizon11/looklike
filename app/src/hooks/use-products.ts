@@ -5,6 +5,7 @@ import {
   addProduct as addProductImpl,
   deleteProduct as deleteProductImpl,
   readProducts,
+  replaceProducts,
   subscribeProducts,
   updateProduct as updateProductImpl,
 } from '@/lib/products-store'
@@ -15,7 +16,10 @@ export function useProducts() {
   useEffect(() => {
     if (hasApi()) {
       apiListProducts()
-        .then(setProducts)
+        .then((list) => {
+          replaceProducts(list)
+          setProducts(list)
+        })
         .catch(() => {
           setProducts(readProducts())
         })
@@ -29,6 +33,7 @@ export function useProducts() {
   const refreshFromApi = useCallback(async () => {
     if (!hasApi()) return
     const next = await apiListProducts()
+    replaceProducts(next)
     setProducts(next)
   }, [])
 

@@ -165,6 +165,11 @@ export function writeProducts(next: Product[]) {
   window.dispatchEvent(new Event(CHANGE_EVENT))
 }
 
+/** Sync local cache after loading from server API (all devices see same catalog). */
+export function replaceProducts(next: Product[]) {
+  writeProducts(next)
+}
+
 export function subscribeProducts(onChange: () => void) {
   if (typeof window === 'undefined') return () => {}
 

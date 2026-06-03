@@ -31,10 +31,10 @@ export type UpiOrderResponse = {
   upiUri: string
 }
 
+import { getApiBase } from '@/lib/api-base'
+
 function apiBase() {
-  const raw = import.meta.env.VITE_API_BASE_URL as string | undefined
-  if (raw) return raw.replace(/\/+$/, '')
-  return ''
+  return getApiBase()
 }
 
 async function paymentFetch(path: string, init?: RequestInit) {
