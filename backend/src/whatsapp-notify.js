@@ -39,6 +39,9 @@ export function formatOrderWhatsAppMessage(order) {
   if (order.upiReference) {
     lines.push('', `UPI ref: ${order.upiReference}`)
   }
+  if (order.paymentProof) {
+    lines.push('', 'Payment screenshot: uploaded on website')
+  }
 
   lines.push('', '— Look Like website')
 

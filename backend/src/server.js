@@ -114,6 +114,7 @@ const OrderSchema = z.object({
   razorpayOrderId: z.string().optional(),
   razorpayPaymentId: z.string().optional(),
   upiReference: z.string().optional(),
+  paymentProof: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
@@ -125,6 +126,10 @@ const CreateCodOrderSchema = z.object({
 
 const ConfirmUpiOrderSchema = z.object({
   upiReference: z.string().optional(),
+  paymentProof: z
+    .string()
+    .min(100, 'Payment screenshot is required')
+    .refine((s) => s.startsWith('data:image/'), 'Upload a valid image screenshot'),
 })
 
 function now() {
@@ -498,10 +503,12 @@ app.post('/api/orders/:id/upi-confirm', async (req, res) => {
 
   const t = now()
   const upiReference = input.data.upiReference?.trim() || undefined
+  const paymentProof = input.data.paymentProof
   const updated = {
     ...current,
     status: 'upi',
     upiReference,
+    paymentProof,
     updatedAt: t,
   }
   const next = [...orders.slice(0, idx), updated, ...orders.slice(idx + 1)]

@@ -706,7 +706,7 @@ export default function Admin() {
         {activeTab === 'orders' && (
           <div className="space-y-6">
             <p className="font-body text-[13px] text-black/50">
-              Paid, UPI, and Cash on Delivery orders are shown. Verify UPI payments in your GPay or bank app.
+              UPI orders include payment screenshots. Verify payment before dispatching.
             </p>
 
             {ordersLoading ? (
@@ -717,7 +717,7 @@ export default function Admin() {
                   <table className="w-full min-w-[900px]">
                     <thead>
                       <tr className="border-b border-black/[0.06]">
-                        {['Order ID', 'Customer', 'Phone', 'Products', 'Payment', 'Amount', 'Date'].map((h) => (
+                        {['Order ID', 'Items', 'Customer', 'Phone', 'Payment', 'Amount', 'Date'].map((h) => (
                           <th
                             key={h}
                             className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium"
@@ -741,13 +741,40 @@ export default function Admin() {
                             onClick={() => setSelectedOrder(order)}
                             className="border-b border-black/[0.04] hover:bg-black/[0.02] cursor-pointer"
                           >
-                            <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.id}</td>
+                            <td className="px-6 py-4 font-body text-[13px] text-black/60 max-w-[140px] truncate">
+                              {order.id}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-1.5">
+                                {order.items.slice(0, 3).map((item, idx) => (
+                                  <div
+                                    key={`${order.id}-${idx}`}
+                                    className="w-10 h-12 bg-[#f7f7f7] border border-black/[0.06] overflow-hidden shrink-0"
+                                  >
+                                    {item.image ? (
+                                      <img src={item.image} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full bg-black/[0.04]" />
+                                    )}
+                                  </div>
+                                ))}
+                                {order.items.length > 3 && (
+                                  <span className="font-body text-[11px] text-black/40">+{order.items.length - 3}</span>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-6 py-4 font-body text-[13px] text-black">{order.customer.name}</td>
                             <td className="px-6 py-4 font-body text-[13px] text-black/60">{order.customer.phone}</td>
-                            <td className="px-6 py-4 font-body text-[12px] text-black/60 max-w-[220px]">
-                              {orderItemsSummary(order.items)}
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-1">
+                                {statusBadge(order.status)}
+                                {order.paymentProof && (
+                                  <span className="font-body text-[10px] uppercase tracking-[0.06em] text-green-700">
+                                    Screenshot
+                                  </span>
+                                )}
+                              </div>
                             </td>
-                            <td className="px-6 py-4">{statusBadge(order.status)}</td>
                             <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {order.amount}</td>
                             <td className="px-6 py-4 font-body text-[13px] text-black/40">
                               {formatOrderDate(order.createdAt)}
@@ -788,12 +815,24 @@ export default function Admin() {
                           {selectedOrder.customer.pincode}
                         </p>
                       </div>
-                      <div className="space-y-2 md:col-span-2">
+                      <div className="space-y-3 md:col-span-2">
                         <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Items</p>
-                        <ul className="space-y-1">
+                        <ul className="space-y-3">
                           {selectedOrder.items.map((item, idx) => (
-                            <li key={idx} className="text-black/80">
-                              {item.name} · Size {item.size} · Qty {item.quantity} · Rs. {item.price}
+                            <li key={idx} className="flex gap-4 items-start">
+                              <div className="w-16 h-20 bg-[#f7f7f7] border border-black/[0.06] overflow-hidden shrink-0">
+                                {item.image ? (
+                                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-black/[0.04]" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-black font-medium">{item.name}</p>
+                                <p className="text-black/60 mt-0.5">
+                                  Size {item.size} · Qty {item.quantity} · Rs. {item.price * item.quantity}
+                                </p>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -809,6 +848,24 @@ export default function Admin() {
                         <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Total</p>
                         <p className="mt-1 text-black font-medium">Rs. {selectedOrder.amount}</p>
                       </div>
+                      {selectedOrder.paymentProof && (
+                        <div className="md:col-span-2 space-y-2">
+                          <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Payment screenshot</p>
+                          <a
+                            href={selectedOrder.paymentProof}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block"
+                          >
+                            <img
+                              src={selectedOrder.paymentProof}
+                              alt="UPI payment proof"
+                              className="max-w-full max-h-[320px] border border-black/[0.08] object-contain bg-[#f7f7f7]"
+                            />
+                          </a>
+                          <p className="text-black/40 font-body text-[12px]">Tap image to open full size</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

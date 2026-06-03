@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Copy, X } from 'lucide-react'
+import { Copy, Upload, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import UpiAppPayButtons from '@/components/UpiAppPayButtons'
 import type { CartItem } from '@/lib/cart-store'
 import type { CheckoutCustomer, UpiOrderResponse } from '@/lib/payments-api'
 import { confirmUpiOrder, createCodOrder, createUpiOrder, getPaymentConfig } from '@/lib/payments-api'
 import { clearCart } from '@/lib/cart-store'
+import { compressImageFile } from '@/lib/compress-image'
 import { tryOwnerWhatsAppFallback } from '@/lib/shop-contact'
 
 type Props = {
@@ -34,6 +34,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
   const [upiEnabled, setUpiEnabled] = useState(false)
   const [upiOrder, setUpiOrder] = useState<UpiOrderResponse | null>(null)
   const [upiReference, setUpiReference] = useState('')
+  const [paymentProof, setPaymentProof] = useState('')
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
       setStep('form')
       setUpiOrder(null)
       setUpiReference('')
+      setPaymentProof('')
       setError('')
       setCopied(false)
     }
@@ -102,11 +104,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
       tryOwnerWhatsAppFallback(result)
       clearCart()
       setForm(emptyForm)
-      onSuccess(
-        result.whatsappSent
-          ? 'Order placed! We sent a WhatsApp alert to the shop and will contact you for delivery.'
-          : 'Order placed! Pay cash when your order is delivered.'
-      )
+      onSuccess('Order placed! Pay cash when your order is delivered.')
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not place order')
@@ -134,24 +132,26 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
 
   const confirmUpiPayment = async () => {
     if (!upiOrder) return
+    if (!paymentProof) {
+      setError('Please upload a screenshot of your UPI payment')
+      return
+    }
+
     setError('')
     setLoading(true)
     try {
       const result = await confirmUpiOrder({
         orderId: upiOrder.orderId,
+        paymentProof,
         upiReference: upiReference.trim() || undefined,
       })
       tryOwnerWhatsAppFallback(result)
       clearCart()
       setForm(emptyForm)
-      onSuccess(
-        result.whatsappSent
-          ? 'Order received! WhatsApp alert sent to the shop. We will verify your UPI payment shortly.'
-          : 'Order received! We will verify your UPI payment and confirm delivery shortly.'
-      )
+      onSuccess('Order submitted! We will verify your payment and contact you for delivery.')
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not confirm payment')
+      setError(e instanceof Error ? e.message : 'Could not submit order')
     } finally {
       setLoading(false)
     }
@@ -187,46 +187,74 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
 
           {step === 'upi' && upiOrder ? (
             <div className="mt-6 space-y-5">
-              <div className="border border-black/[0.08] p-5 text-center">
-                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Scan & pay (recommended)</p>
-                <p className="font-display text-[28px] text-black mt-2">
+              <div className="border border-black/[0.08] p-5">
+                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Amount to pay</p>
+                <p className="font-display text-[32px] text-black mt-1">
                   Rs. {upiOrder.amount.toLocaleString('en-IN')}
                 </p>
-                <p className="font-body text-[12px] text-black/45 mt-1">Order {upiOrder.orderId.slice(-12)}</p>
-                <div className="mt-4 inline-flex p-3 bg-white border border-black/[0.08]">
-                  <QRCodeSVG value={upiOrder.upiUri} size={220} level="M" includeMargin />
-                </div>
-                <p className="font-body text-[13px] text-black/60 mt-4">
-                  Open <strong>GPay</strong> → tap <strong>Scan QR</strong> → scan this code. Works with business UPI.
+                <p className="font-body text-[12px] text-black/45 mt-2">
+                  Pay this exact amount to the UPI ID below, then upload your payment screenshot.
                 </p>
               </div>
 
-              <UpiAppPayButtons
-                upiId={upiOrder.upiId}
-                payeeName={upiOrder.payeeName}
-                amount={upiOrder.amount}
-              />
-
-              <div className="relative flex items-center gap-3">
-                <div className="flex-1 h-px bg-black/[0.08]" />
-                <span className="font-body text-[11px] uppercase tracking-[0.08em] text-black/30">or copy UPI ID</span>
-                <div className="flex-1 h-px bg-black/[0.08]" />
-              </div>
-
-              <div className="border border-black/[0.06] p-4">
+              <div className="border border-black/[0.06] p-4 bg-[#fafafa]">
                 <p className="font-body text-[12px] uppercase tracking-[0.06em] text-black/40">UPI ID</p>
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="font-body text-[14px] text-black break-all">{upiOrder.upiId}</p>
+                  <p className="font-body text-[15px] font-medium text-black break-all">{upiOrder.upiId}</p>
                   <button
                     type="button"
                     onClick={copyUpiId}
-                    className="shrink-0 inline-flex items-center gap-1.5 px-3 h-9 border border-black/10 font-body text-[12px] uppercase tracking-[0.04em] text-black/70 hover:border-black/30 transition-colors"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 h-9 border border-black/10 bg-white font-body text-[12px] uppercase tracking-[0.04em] text-black/70 hover:border-black/30 transition-colors"
                   >
                     <Copy size={14} />
                     {copied ? 'Copied' : 'Copy'}
                   </button>
                 </div>
                 <p className="font-body text-[12px] text-black/40 mt-2">Payee: {upiOrder.payeeName}</p>
+                <p className="font-body text-[12px] text-black/50 mt-3">
+                  Open GPay / PhonePe / Paytm → Pay to UPI ID → enter amount → complete payment.
+                </p>
+              </div>
+
+              <div className="border border-black/[0.08] p-4 text-center">
+                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40 mb-3">
+                  Or scan QR (optional)
+                </p>
+                <div className="inline-flex p-2 bg-white border border-black/[0.08]">
+                  <QRCodeSVG value={upiOrder.upiUri} size={160} level="M" includeMargin />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                  Payment screenshot <span className="text-red-500">*</span>
+                </label>
+                <label className="mt-2 flex flex-col items-center justify-center gap-2 w-full min-h-[120px] border border-dashed border-black/20 cursor-pointer hover:border-black/40 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      try {
+                        setError('')
+                        const dataUrl = await compressImageFile(file, 900, 0.8)
+                        setPaymentProof(dataUrl)
+                      } catch {
+                        setError('Could not use that image. Try a clear screenshot (JPG/PNG).')
+                      }
+                    }}
+                  />
+                  {paymentProof ? (
+                    <img src={paymentProof} alt="Payment proof" className="max-h-[180px] object-contain" />
+                  ) : (
+                    <>
+                      <Upload size={22} className="text-black/30" />
+                      <span className="font-body text-[13px] text-black/50">Tap to upload payment screenshot</span>
+                    </>
+                  )}
+                </label>
               </div>
 
               <div>
@@ -239,9 +267,6 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
                   className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
                   placeholder="e.g. 123456789012"
                 />
-                <p className="font-body text-[12px] text-black/40 mt-1">
-                  Helps us verify your payment faster.
-                </p>
               </div>
 
               {error && <p className="font-body text-[13px] text-red-500">{error}</p>}
@@ -249,11 +274,11 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
               <div className="flex flex-col gap-3">
                 <button
                   type="button"
-                  disabled={loading}
+                  disabled={loading || !paymentProof}
                   onClick={confirmUpiPayment}
                   className="w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors disabled:opacity-60"
                 >
-                  {loading ? 'Please wait…' : 'I have paid'}
+                  {loading ? 'Please wait…' : 'Submit order'}
                 </button>
                 <button
                   type="button"
@@ -261,6 +286,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
                   onClick={() => {
                     setStep('form')
                     setUpiOrder(null)
+                    setPaymentProof('')
                     setError('')
                   }}
                   className="w-full h-[44px] border border-black/15 font-body text-[13px] uppercase tracking-[0.06em] text-black/70 hover:border-black/30 transition-colors"
@@ -362,7 +388,7 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
                   </button>
                 ) : (
                   <p className="font-body text-[12px] text-amber-700 bg-amber-50 border border-amber-100 p-3">
-                    UPI QR is not configured on the server yet. Use Cash on Delivery, or ask the shop owner to add UPI_ID.
+                    UPI is not configured on the server yet. Use Cash on Delivery, or add UPI_ID on Render.
                   </p>
                 )}
                 <button

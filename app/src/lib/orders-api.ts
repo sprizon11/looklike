@@ -1,3 +1,5 @@
+import { getApiBase } from '@/lib/api-base'
+
 export type OrderCustomer = {
   name: string
   phone: string
@@ -26,11 +28,10 @@ export type AdminOrder = {
   status: 'paid' | 'cod' | 'upi'
   paymentMethod?: 'online' | 'cod' | 'upi'
   upiReference?: string
+  paymentProof?: string
   createdAt: number
   updatedAt: number
 }
-
-import { getApiBase } from '@/lib/api-base'
 
 function apiBase() {
   return getApiBase()

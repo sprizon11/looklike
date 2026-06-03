@@ -1,5 +1,6 @@
 import type { CartItem } from '@/lib/cart-store'
 import type { OrderNotifyInfo } from '@/lib/shop-contact'
+import { getApiBase } from '@/lib/api-base'
 
 export type CheckoutCustomer = {
   name: string
@@ -30,8 +31,6 @@ export type UpiOrderResponse = {
   payeeName: string
   upiUri: string
 }
-
-import { getApiBase } from '@/lib/api-base'
 
 function apiBase() {
   return getApiBase()
@@ -90,10 +89,15 @@ export async function createUpiOrder(input: {
   return res.json() as Promise<UpiOrderResponse>
 }
 
-export async function confirmUpiOrder(input: { orderId: string; upiReference?: string }) {
+export async function confirmUpiOrder(input: {
+  orderId: string
+  paymentProof: string
+  upiReference?: string
+}) {
   const res = await paymentFetch(`/api/orders/${encodeURIComponent(input.orderId)}/upi-confirm`, {
     method: 'POST',
     body: JSON.stringify({
+      paymentProof: input.paymentProof,
       upiReference: input.upiReference?.trim() || undefined,
     }),
   })
