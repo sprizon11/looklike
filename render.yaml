@@ -16,3 +16,7 @@ services:
         value: 7695921699@okbizaxis
       - key: UPI_PAYEE_NAME
         value: Look Like
+      - key: SHOP_WHATSAPP_PHONE
+        value: "919344841180"
+      - key: WHATSAPP_API_KEY
+        sync: false

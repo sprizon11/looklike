@@ -6,6 +6,7 @@ import type { CartItem } from '@/lib/cart-store'
 import type { CheckoutCustomer, UpiOrderResponse } from '@/lib/payments-api'
 import { confirmUpiOrder, createCodOrder, createUpiOrder, getPaymentConfig } from '@/lib/payments-api'
 import { clearCart } from '@/lib/cart-store'
+import { tryOwnerWhatsAppFallback } from '@/lib/shop-contact'
 
 type Props = {
   open: boolean
@@ -97,10 +98,15 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
 
     setLoading(true)
     try {
-      await createCodOrder({ customer, items })
+      const result = await createCodOrder({ customer, items })
+      tryOwnerWhatsAppFallback(result)
       clearCart()
       setForm(emptyForm)
-      onSuccess('Order placed! Pay cash when your order is delivered.')
+      onSuccess(
+        result.whatsappSent
+          ? 'Order placed! We sent a WhatsApp alert to the shop and will contact you for delivery.'
+          : 'Order placed! Pay cash when your order is delivered.'
+      )
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not place order')
@@ -131,13 +137,18 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
     setError('')
     setLoading(true)
     try {
-      await confirmUpiOrder({
+      const result = await confirmUpiOrder({
         orderId: upiOrder.orderId,
         upiReference: upiReference.trim() || undefined,
       })
+      tryOwnerWhatsAppFallback(result)
       clearCart()
       setForm(emptyForm)
-      onSuccess('Order received! We will verify your UPI payment and confirm delivery shortly.')
+      onSuccess(
+        result.whatsappSent
+          ? 'Order received! WhatsApp alert sent to the shop. We will verify your UPI payment shortly.'
+          : 'Order received! We will verify your UPI payment and confirm delivery shortly.'
+      )
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not confirm payment')

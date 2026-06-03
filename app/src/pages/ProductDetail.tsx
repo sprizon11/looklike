@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { ChevronLeft, Check, ShoppingBag } from 'lucide-react'
 import { useProducts } from '@/hooks/use-products'
 import { addToCart } from '@/lib/cart-store'
+import { buildWhatsAppUrl } from '@/lib/shop-contact'
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
@@ -61,7 +62,7 @@ export default function ProductDetail() {
   const handleWhatsAppOrder = () => {
     const size = selectedSize || sizes[0]
     const message = `Hi! I'd like to order:\n${product.name}\nSize: ${size}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
-    window.open(`https://wa.me/919344841180?text=${encodeURIComponent(message)}`, '_blank')
+    window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer')
   }
 
   return (

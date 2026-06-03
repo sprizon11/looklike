@@ -1,4 +1,5 @@
 import Logo from '@/components/Logo'
+import { buildWhatsAppUrl } from '@/lib/shop-contact'
 
 export default function Footer() {
   const scrollToSection = (href: string) => {
@@ -77,7 +78,7 @@ export default function Footer() {
               Tirupur, Tamil Nadu
             </p>
             <a
-              href="https://wa.me/919344841180"
+              href={buildWhatsAppUrl('Hi Look Like!')}
               target="_blank"
               rel="noopener noreferrer"
               className="block font-body text-[14px] font-normal text-black/50 hover:text-black transition-colors duration-200 mt-2"

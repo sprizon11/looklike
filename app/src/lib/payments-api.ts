@@ -1,4 +1,5 @@
 import type { CartItem } from '@/lib/cart-store'
+import type { OrderNotifyInfo } from '@/lib/shop-contact'
 
 export type CheckoutCustomer = {
   name: string
@@ -13,6 +14,11 @@ export type CheckoutCustomer = {
 export type PaymentConfig = {
   razorpay: { enabled: boolean; keyId: string | null }
   upi: { enabled: boolean; upiId: string | null; payeeName: string }
+}
+
+export type OrderPlacedResponse = OrderNotifyInfo & {
+  ok: boolean
+  orderId: string
 }
 
 export type UpiOrderResponse = {
@@ -91,7 +97,7 @@ export async function confirmUpiOrder(input: { orderId: string; upiReference?: s
       upiReference: input.upiReference?.trim() || undefined,
     }),
   })
-  return res.json() as Promise<{ ok: boolean }>
+  return res.json() as Promise<OrderPlacedResponse>
 }
 
 export async function createCodOrder(input: {
@@ -105,5 +111,5 @@ export async function createCodOrder(input: {
       items: mapCartItems(input.items),
     }),
   })
-  return res.json() as Promise<{ ok: boolean; orderId: string }>
+  return res.json() as Promise<OrderPlacedResponse>
 }

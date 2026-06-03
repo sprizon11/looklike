@@ -7,6 +7,7 @@ import express from 'express'
 import cors from 'cors'
 import Razorpay from 'razorpay'
 import { z } from 'zod'
+import { notifyShopWhatsAppOrder } from './whatsapp-notify.js'
 
 const app = express()
 
@@ -506,7 +507,9 @@ app.post('/api/orders/:id/upi-confirm', async (req, res) => {
   const next = [...orders.slice(0, idx), updated, ...orders.slice(idx + 1)]
   await writeOrders(next)
 
-  res.json({ ok: true, order: updated })
+  const whatsapp = await notifyShopWhatsAppOrder(updated)
+
+  res.json({ ok: true, order: updated, ...whatsapp })
 })
 
 app.post('/api/orders/cod', async (req, res) => {
@@ -544,7 +547,9 @@ app.post('/api/orders/cod', async (req, res) => {
   const orders = await readOrders()
   await writeOrders([order, ...orders])
 
-  res.status(201).json({ ok: true, orderId, order })
+  const whatsapp = await notifyShopWhatsAppOrder(order)
+
+  res.status(201).json({ ok: true, orderId, order, ...whatsapp })
 })
 
 app.get('/api/orders', async (_req, res) => {
