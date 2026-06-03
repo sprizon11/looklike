@@ -34,6 +34,7 @@ import {
   orderStatusLabel,
   type AdminOrder,
 } from '@/lib/orders-api'
+import { compressImageFile } from '@/lib/compress-image'
 
 const ADMIN_PASSWORD = 'admin123'
 
@@ -52,6 +53,7 @@ export default function Admin() {
   const [productModalOpen, setProductModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productError, setProductError] = useState('')
+  const [productSaving, setProductSaving] = useState(false)
   const [productForm, setProductForm] = useState({
     name: '',
     category: 'Kurti',
@@ -295,12 +297,19 @@ export default function Admin() {
     }
 
     setProductError('')
-    if (editingProduct) {
-      await updateProduct(editingProduct.id, { name, category, price, stock, image, size, description })
-    } else {
-      await addProduct({ name, category, price, stock, image, size, description })
+    setProductSaving(true)
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, { name, category, price, stock, image, size, description })
+      } else {
+        await addProduct({ name, category, price, stock, image, size, description })
+      }
+      closeProductModal()
+    } catch (e) {
+      setProductError(e instanceof Error ? e.message : 'Could not save product. Try a smaller image.')
+    } finally {
+      setProductSaving(false)
     }
-    closeProductModal()
   }
 
   const handleLogin = () => {
@@ -1006,8 +1015,13 @@ export default function Admin() {
                   onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file) return
-                    const dataUrl = await toDataUrl(file)
-                    setProductForm((s) => ({ ...s, image: dataUrl }))
+                    try {
+                      setProductError('')
+                      const dataUrl = await compressImageFile(file)
+                      setProductForm((s) => ({ ...s, image: dataUrl }))
+                    } catch {
+                      setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
+                    }
                   }}
                 />
                 <div className="mt-3 flex items-center gap-4">
@@ -1039,10 +1053,12 @@ export default function Admin() {
                 Cancel
               </button>
               <button
+                type="button"
+                disabled={productSaving}
                 onClick={submitProduct}
-                className="h-[40px] px-4 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.04em] hover:bg-black/90 transition-colors"
+                className="h-[40px] px-4 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.04em] hover:bg-black/90 transition-colors disabled:opacity-60"
               >
-                {editingProduct ? 'Save' : 'Add'}
+                {productSaving ? 'Saving…' : editingProduct ? 'Save' : 'Add'}
               </button>
             </div>
             </div>

@@ -17,7 +17,14 @@ async function apiFetch(path: string, init?: RequestInit) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(text || `Request failed: ${res.status}`)
+    let message = `Request failed: ${res.status}`
+    try {
+      const json = JSON.parse(text) as { error?: string }
+      if (json.error) message = json.error
+    } catch {
+      if (text && text.length < 200) message = text
+    }
+    throw new Error(message)
   }
 
   return res
