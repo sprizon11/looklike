@@ -388,11 +388,13 @@ export default function Admin() {
   const totalRevenue = orders.reduce((sum, o) => sum + o.amount, 0)
   const codOrders = orders.filter((o) => o.status === 'cod').length
   const paidOrders = orders.filter((o) => o.status === 'paid').length
+  const upiOrders = orders.filter((o) => o.status === 'upi').length
 
   const statusBadge = (status: AdminOrder['status']) => {
     const classes: Record<AdminOrder['status'], string> = {
       paid: 'bg-green-100 text-green-700',
       cod: 'bg-amber-100 text-amber-800',
+      upi: 'bg-blue-100 text-blue-800',
     }
     return (
       <span
@@ -473,9 +475,9 @@ export default function Admin() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 { label: 'TOTAL PRODUCTS', value: products.length, icon: Box, change: 'In catalog' },
-                { label: 'CONFIRMED ORDERS', value: orders.length, icon: ShoppingCart, change: `${paidOrders} paid · ${codOrders} COD` },
-                { label: 'TOTAL REVENUE', value: `Rs. ${totalRevenue.toLocaleString()}`, icon: DollarSign, change: 'Paid + COD' },
-                { label: 'COD ORDERS', value: codOrders, icon: Clock, change: 'Cash on delivery' },
+                { label: 'CONFIRMED ORDERS', value: orders.length, icon: ShoppingCart, change: `${paidOrders} paid · ${upiOrders} UPI · ${codOrders} COD` },
+                { label: 'TOTAL REVENUE', value: `Rs. ${totalRevenue.toLocaleString()}`, icon: DollarSign, change: 'Paid + UPI + COD' },
+                { label: 'UPI ORDERS', value: upiOrders, icon: Clock, change: 'Verify in GPay / bank' },
               ].map((stat) => {
                 const Icon = stat.icon
                 return (
@@ -695,7 +697,7 @@ export default function Admin() {
         {activeTab === 'orders' && (
           <div className="space-y-6">
             <p className="font-body text-[13px] text-black/50">
-              Only successful online payments (Paid) and Cash on Delivery orders are shown.
+              Paid, UPI, and Cash on Delivery orders are shown. Verify UPI payments in your GPay or bank app.
             </p>
 
             {ordersLoading ? (
@@ -790,6 +792,9 @@ export default function Admin() {
                       <div>
                         <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Payment</p>
                         <p className="mt-1">{statusBadge(selectedOrder.status)}</p>
+                        {selectedOrder.upiReference && (
+                          <p className="mt-2 text-black/70">UPI ref: {selectedOrder.upiReference}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Total</p>

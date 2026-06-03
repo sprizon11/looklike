@@ -23,8 +23,9 @@ export type AdminOrder = {
   items: OrderItem[]
   amount: number
   currency: string
-  status: 'paid' | 'cod'
-  paymentMethod?: 'online' | 'cod'
+  status: 'paid' | 'cod' | 'upi'
+  paymentMethod?: 'online' | 'cod' | 'upi'
+  upiReference?: string
   createdAt: number
   updatedAt: number
 }
@@ -57,5 +58,6 @@ export function orderItemsSummary(items: OrderItem[]) {
 export function orderStatusLabel(status: AdminOrder['status']) {
   if (status === 'paid') return 'Paid'
   if (status === 'cod') return 'Cash on Delivery'
+  if (status === 'upi') return 'UPI'
   return status
 }

@@ -12,3 +12,7 @@ services:
         value: ./app/dist
       - key: DATA_DIR
         value: ./backend/data
+      - key: UPI_ID
+        sync: false
+      - key: UPI_PAYEE_NAME
+        value: Look Like

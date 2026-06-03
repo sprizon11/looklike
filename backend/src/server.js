@@ -36,6 +36,8 @@ const ORDERS_FILE = path.join(DATA_DIR, 'orders.json')
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
+const UPI_ID = process.env.UPI_ID || ''
+const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME || 'Look Like'
 
 const razorpay =
   RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET
@@ -106,10 +108,11 @@ const OrderSchema = z.object({
   items: z.array(CartItemSchema),
   amount: z.number().nonnegative(),
   currency: z.literal('INR'),
-  status: z.enum(['pending', 'paid', 'failed', 'cod']),
-  paymentMethod: z.enum(['online', 'cod']).optional(),
+  status: z.enum(['pending', 'paid', 'failed', 'cod', 'upi_pending', 'upi']),
+  paymentMethod: z.enum(['online', 'cod', 'upi']).optional(),
   razorpayOrderId: z.string().optional(),
   razorpayPaymentId: z.string().optional(),
+  upiReference: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
@@ -117,6 +120,10 @@ const OrderSchema = z.object({
 const CreateCodOrderSchema = z.object({
   customer: CustomerSchema,
   items: z.array(CartItemSchema).min(1),
+})
+
+const ConfirmUpiOrderSchema = z.object({
+  upiReference: z.string().optional(),
 })
 
 function now() {
@@ -273,12 +280,30 @@ function calcTotal(items) {
   return items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 }
 
+function buildUpiPayUri({ upiId, payeeName, amount, note }) {
+  const params = new URLSearchParams({
+    pa: upiId.trim(),
+    pn: payeeName.trim(),
+    am: amount.toFixed(2),
+    cu: 'INR',
+  })
+  if (note?.trim()) params.set('tn', note.trim())
+  return `upi://pay?${params.toString()}`
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
 app.get('/api/payments/config', (_req, res) => {
   res.json({
-    enabled: Boolean(razorpay),
-    keyId: RAZORPAY_KEY_ID || null,
+    razorpay: {
+      enabled: Boolean(razorpay),
+      keyId: RAZORPAY_KEY_ID || null,
+    },
+    upi: {
+      enabled: Boolean(UPI_ID),
+      upiId: UPI_ID || null,
+      payeeName: UPI_PAYEE_NAME,
+    },
   })
 })
 
@@ -391,6 +416,99 @@ app.post('/api/payments/verify', async (req, res) => {
   res.json({ ok: true, order: updated })
 })
 
+app.post('/api/orders/upi', async (req, res) => {
+  if (!UPI_ID) {
+    res.status(503).json({ error: 'UPI payments are not configured. Add UPI_ID on the server.' })
+    return
+  }
+
+  const input = CreateCodOrderSchema.safeParse(req.body)
+  if (!input.success) {
+    res.status(400).json({ error: 'Invalid payload', details: input.error.flatten() })
+    return
+  }
+
+  const amount = calcTotal(input.data.items)
+  if (amount <= 0) {
+    res.status(400).json({ error: 'Invalid order amount' })
+    return
+  }
+
+  const orderId = id('ord')
+  const t = now()
+  const customer = {
+    ...input.data.customer,
+    email: input.data.customer.email || undefined,
+  }
+
+  const order = {
+    id: orderId,
+    customer,
+    items: input.data.items,
+    amount,
+    currency: 'INR',
+    status: 'upi_pending',
+    paymentMethod: 'upi',
+    createdAt: t,
+    updatedAt: t,
+  }
+
+  const orders = await readOrders()
+  await writeOrders([order, ...orders])
+
+  const upiUri = buildUpiPayUri({
+    upiId: UPI_ID,
+    payeeName: UPI_PAYEE_NAME,
+    amount,
+    note: `Look Like order ${orderId}`,
+  })
+
+  res.status(201).json({
+    ok: true,
+    orderId,
+    amount,
+    currency: 'INR',
+    upiId: UPI_ID,
+    payeeName: UPI_PAYEE_NAME,
+    upiUri,
+    order,
+  })
+})
+
+app.post('/api/orders/:id/upi-confirm', async (req, res) => {
+  const input = ConfirmUpiOrderSchema.safeParse(req.body)
+  if (!input.success) {
+    res.status(400).json({ error: 'Invalid payload', details: input.error.flatten() })
+    return
+  }
+
+  const orders = await readOrders()
+  const idx = orders.findIndex((o) => o.id === req.params.id)
+  if (idx === -1) {
+    res.status(404).json({ error: 'Order not found' })
+    return
+  }
+
+  const current = orders[idx]
+  if (current.status !== 'upi_pending') {
+    res.status(400).json({ error: 'Order is not awaiting UPI payment' })
+    return
+  }
+
+  const t = now()
+  const upiReference = input.data.upiReference?.trim() || undefined
+  const updated = {
+    ...current,
+    status: 'upi',
+    upiReference,
+    updatedAt: t,
+  }
+  const next = [...orders.slice(0, idx), updated, ...orders.slice(idx + 1)]
+  await writeOrders(next)
+
+  res.json({ ok: true, order: updated })
+})
+
 app.post('/api/orders/cod', async (req, res) => {
   const input = CreateCodOrderSchema.safeParse(req.body)
   if (!input.success) {
@@ -431,7 +549,7 @@ app.post('/api/orders/cod', async (req, res) => {
 
 app.get('/api/orders', async (_req, res) => {
   const orders = await readOrders()
-  const visible = orders.filter((o) => o.status === 'paid' || o.status === 'cod')
+  const visible = orders.filter((o) => o.status === 'paid' || o.status === 'cod' || o.status === 'upi')
   res.json({ orders: visible })
 })
 

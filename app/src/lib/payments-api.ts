@@ -10,6 +10,21 @@ export type CheckoutCustomer = {
   pincode: string
 }
 
+export type PaymentConfig = {
+  razorpay: { enabled: boolean; keyId: string | null }
+  upi: { enabled: boolean; upiId: string | null; payeeName: string }
+}
+
+export type UpiOrderResponse = {
+  ok: boolean
+  orderId: string
+  amount: number
+  currency: string
+  upiId: string
+  payeeName: string
+  upiUri: string
+}
+
 function apiBase() {
   const raw = import.meta.env.VITE_API_BASE_URL as string | undefined
   if (raw) return raw.replace(/\/+$/, '')
@@ -39,47 +54,42 @@ async function paymentFetch(path: string, init?: RequestInit) {
   return res
 }
 
-export async function getPaymentConfig(): Promise<{ enabled: boolean; keyId: string | null }> {
-  const res = await paymentFetch('/api/payments/config')
-  return res.json() as Promise<{ enabled: boolean; keyId: string | null }>
+function mapCartItems(items: CartItem[]) {
+  return items.map((i) => ({
+    productId: i.productId,
+    name: i.name,
+    price: i.price,
+    quantity: i.quantity,
+    size: i.size,
+    image: i.image,
+  }))
 }
 
-export async function createPaymentOrder(input: {
+export async function getPaymentConfig(): Promise<PaymentConfig> {
+  const res = await paymentFetch('/api/payments/config')
+  return res.json() as Promise<PaymentConfig>
+}
+
+export async function createUpiOrder(input: {
   customer: CheckoutCustomer
   items: CartItem[]
 }) {
-  const res = await paymentFetch('/api/payments/create-order', {
+  const res = await paymentFetch('/api/orders/upi', {
     method: 'POST',
     body: JSON.stringify({
       customer: input.customer,
-      items: input.items.map((i) => ({
-        productId: i.productId,
-        name: i.name,
-        price: i.price,
-        quantity: i.quantity,
-        size: i.size,
-        image: i.image,
-      })),
+      items: mapCartItems(input.items),
     }),
   })
-  return res.json() as Promise<{
-    orderId: string
-    amount: number
-    currency: string
-    razorpayOrderId: string
-    keyId: string
-  }>
+  return res.json() as Promise<UpiOrderResponse>
 }
 
-export async function verifyPayment(input: {
-  orderId: string
-  razorpay_order_id: string
-  razorpay_payment_id: string
-  razorpay_signature: string
-}) {
-  const res = await paymentFetch('/api/payments/verify', {
+export async function confirmUpiOrder(input: { orderId: string; upiReference?: string }) {
+  const res = await paymentFetch(`/api/orders/${encodeURIComponent(input.orderId)}/upi-confirm`, {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      upiReference: input.upiReference?.trim() || undefined,
+    }),
   })
   return res.json() as Promise<{ ok: boolean }>
 }
@@ -92,14 +102,7 @@ export async function createCodOrder(input: {
     method: 'POST',
     body: JSON.stringify({
       customer: input.customer,
-      items: input.items.map((i) => ({
-        productId: i.productId,
-        name: i.name,
-        price: i.price,
-        quantity: i.quantity,
-        size: i.size,
-        image: i.image,
-      })),
+      items: mapCartItems(input.items),
     }),
   })
   return res.json() as Promise<{ ok: boolean; orderId: string }>
