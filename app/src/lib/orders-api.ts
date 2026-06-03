@@ -52,6 +52,18 @@ export function formatOrderDate(ts: number) {
   })
 }
 
+export function formatOrderTime(ts: number) {
+  return new Date(ts).toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+export function formatOrderDateTime(ts: number) {
+  return `${formatOrderDate(ts)}, ${formatOrderTime(ts)}`
+}
+
 export function orderItemsSummary(items: OrderItem[]) {
   return items.map((i) => `${i.name} (${i.size}) x${i.quantity}`).join(', ')
 }

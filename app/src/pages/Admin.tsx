@@ -30,6 +30,8 @@ import type { FeaturedItem } from '@/lib/featured-store'
 import {
   apiListOrders,
   formatOrderDate,
+  formatOrderTime,
+  formatOrderDateTime,
   orderItemsSummary,
   orderStatusLabel,
   type AdminOrder,
@@ -519,7 +521,7 @@ export default function Admin() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-black/[0.06]">
-                      {['Order ID', 'Customer', 'Product', 'Date', 'Status', 'Amount'].map((h) => (
+                      {['Order ID', 'Customer', 'Product', 'Date & time', 'Status', 'Amount'].map((h) => (
                         <th key={h} className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium">
                           {h}
                         </th>
@@ -541,8 +543,9 @@ export default function Admin() {
                           <td className="px-6 py-4 font-body text-[13px] text-black/60 max-w-[200px] truncate">
                             {orderItemsSummary(order.items)}
                           </td>
-                          <td className="px-6 py-4 font-body text-[13px] text-black/40">
-                            {formatOrderDate(order.createdAt)}
+                          <td className="px-6 py-4 font-body text-[13px] text-black/40 whitespace-nowrap">
+                            <p>{formatOrderDate(order.createdAt)}</p>
+                            <p className="text-[12px] text-black/35 mt-0.5">{formatOrderTime(order.createdAt)}</p>
                           </td>
                           <td className="px-6 py-4">{statusBadge(order.status)}</td>
                           <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {order.amount}</td>
@@ -717,7 +720,7 @@ export default function Admin() {
                   <table className="w-full min-w-[900px]">
                     <thead>
                       <tr className="border-b border-black/[0.06]">
-                        {['Order ID', 'Items', 'Customer', 'Phone', 'Payment', 'Amount', 'Date'].map((h) => (
+                        {['Order ID', 'Items', 'Customer', 'Phone', 'Payment', 'Amount', 'Date & time'].map((h) => (
                           <th
                             key={h}
                             className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium"
@@ -776,8 +779,9 @@ export default function Admin() {
                               </div>
                             </td>
                             <td className="px-6 py-4 font-body text-[13px] font-medium text-black">Rs. {order.amount}</td>
-                            <td className="px-6 py-4 font-body text-[13px] text-black/40">
-                              {formatOrderDate(order.createdAt)}
+                            <td className="px-6 py-4 font-body text-[13px] text-black/40 whitespace-nowrap">
+                              <p>{formatOrderDate(order.createdAt)}</p>
+                              <p className="text-[12px] text-black/35 mt-0.5">{formatOrderTime(order.createdAt)}</p>
                             </td>
                           </tr>
                         ))
@@ -836,6 +840,10 @@ export default function Admin() {
                             </li>
                           ))}
                         </ul>
+                      </div>
+                      <div>
+                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Order placed</p>
+                        <p className="mt-1 text-black">{formatOrderDateTime(selectedOrder.createdAt)}</p>
                       </div>
                       <div>
                         <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Payment</p>
