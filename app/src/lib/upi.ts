@@ -5,19 +5,33 @@ export type UpiPayInput = {
   note?: string
 }
 
-function buildUpiQuery(input: UpiPayInput) {
+type UpiQueryOptions = {
+  /** Long notes in deep links can trigger GPay "risky transaction" blocks. */
+  includeNote?: boolean
+}
+
+function buildUpiQuery(input: UpiPayInput, options: UpiQueryOptions = {}) {
+  const { includeNote = false } = options
   const params = new URLSearchParams({
     pa: input.upiId.trim(),
-    pn: input.payeeName.trim(),
+    pn: input.payeeName.trim().slice(0, 50),
     am: input.amount.toFixed(2),
     cu: 'INR',
   })
-  if (input.note?.trim()) params.set('tn', input.note.trim())
+  if (includeNote && input.note?.trim()) {
+    params.set('tn', input.note.trim().slice(0, 50))
+  }
   return params.toString()
 }
 
+/** For QR codes — short note only (GPay business UPI works best via scan). */
+export function buildUpiQrUri(input: UpiPayInput) {
+  return `upi://pay?${buildUpiQuery(input, { includeNote: true })}`
+}
+
+/** For app deep links — amount + UPI ID only (no note — reduces GPay blocks). */
 export function buildUpiPayUri(input: UpiPayInput) {
-  return `upi://pay?${buildUpiQuery(input)}`
+  return `upi://pay?${buildUpiQuery(input, { includeNote: false })}`
 }
 
 export type UpiAppLink = {
@@ -27,23 +41,16 @@ export type UpiAppLink = {
   href: string
 }
 
-function isAndroid() {
-  return typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)
-}
-
 export function buildUpiAppLinks(input: UpiPayInput): UpiAppLink[] {
-  const q = buildUpiQuery(input)
-
-  const gpayHref = isAndroid()
-    ? `intent://upi/pay?${q}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`
-    : `gpay://upi/pay?${q}`
+  const q = buildUpiQuery(input, { includeNote: false })
+  const upiHref = `upi://pay?${q}`
 
   return [
     {
       id: 'gpay',
       label: 'Google Pay',
-      subtitle: 'Opens GPay app',
-      href: gpayHref,
+      subtitle: 'If blocked, scan QR above',
+      href: upiHref,
     },
     {
       id: 'phonepe',
@@ -60,8 +67,8 @@ export function buildUpiAppLinks(input: UpiPayInput): UpiAppLink[] {
     {
       id: 'any',
       label: 'Other UPI app',
+      href: upiHref,
       subtitle: 'Choose any installed app',
-      href: `upi://pay?${q}`,
     },
   ]
 }

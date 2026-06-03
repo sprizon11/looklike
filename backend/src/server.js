@@ -281,14 +281,14 @@ function calcTotal(items) {
   return items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 }
 
-function buildUpiPayUri({ upiId, payeeName, amount, note }) {
+function buildUpiPayUri({ upiId, payeeName, amount, note }, { includeNote = true } = {}) {
   const params = new URLSearchParams({
     pa: upiId.trim(),
-    pn: payeeName.trim(),
+    pn: payeeName.trim().slice(0, 50),
     am: amount.toFixed(2),
     cu: 'INR',
   })
-  if (note?.trim()) params.set('tn', note.trim())
+  if (includeNote && note?.trim()) params.set('tn', note.trim().slice(0, 50))
   return `upi://pay?${params.toString()}`
 }
 
@@ -461,7 +461,7 @@ app.post('/api/orders/upi', async (req, res) => {
     upiId: UPI_ID,
     payeeName: UPI_PAYEE_NAME,
     amount,
-    note: `Look Like order ${orderId}`,
+    note: 'LookLike',
   })
 
   res.status(201).json({

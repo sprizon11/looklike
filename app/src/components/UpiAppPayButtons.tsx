@@ -5,7 +5,6 @@ type Props = {
   upiId: string
   payeeName: string
   amount: number
-  note?: string
 }
 
 const appAccent: Record<string, string> = {
@@ -15,8 +14,8 @@ const appAccent: Record<string, string> = {
   any: 'border-black/15 hover:border-black/35',
 }
 
-export default function UpiAppPayButtons({ upiId, payeeName, amount, note }: Props) {
-  const input: UpiPayInput = { upiId, payeeName, amount, note }
+export default function UpiAppPayButtons({ upiId, payeeName, amount }: Props) {
+  const input: UpiPayInput = { upiId, payeeName, amount }
   const links = buildUpiAppLinks(input)
   const mobile = isMobileDevice()
 
@@ -31,8 +30,8 @@ export default function UpiAppPayButtons({ upiId, payeeName, amount, note }: Pro
         <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Pay directly</p>
         <p className="font-body text-[13px] text-black/60 mt-1">
           {mobile
-            ? 'Tap an app — amount Rs. ' + amount.toLocaleString('en-IN') + ' will be pre-filled.'
-            : 'On mobile, tap to open the app. On desktop, scan the QR code above.'}
+            ? 'GPay business UPI may block app buttons — scanning the QR is the most reliable way to pay.'
+            : 'On mobile, scan the QR with GPay. App buttons may show "risky transaction" for business UPI.'}
         </p>
       </div>
 

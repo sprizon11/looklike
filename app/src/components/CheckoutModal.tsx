@@ -188,15 +188,16 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
           {step === 'upi' && upiOrder ? (
             <div className="mt-6 space-y-5">
               <div className="border border-black/[0.08] p-5 text-center">
-                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Scan & pay</p>
+                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Scan & pay (recommended)</p>
                 <p className="font-display text-[28px] text-black mt-2">
                   Rs. {upiOrder.amount.toLocaleString('en-IN')}
                 </p>
+                <p className="font-body text-[12px] text-black/45 mt-1">Order {upiOrder.orderId.slice(-12)}</p>
                 <div className="mt-4 inline-flex p-3 bg-white border border-black/[0.08]">
                   <QRCodeSVG value={upiOrder.upiUri} size={220} level="M" includeMargin />
                 </div>
                 <p className="font-body text-[13px] text-black/60 mt-4">
-                  Scan with any UPI app, or tap an app below to pay directly on your phone.
+                  Open <strong>GPay</strong> → tap <strong>Scan QR</strong> → scan this code. Works with business UPI.
                 </p>
               </div>
 
@@ -204,7 +205,6 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
                 upiId={upiOrder.upiId}
                 payeeName={upiOrder.payeeName}
                 amount={upiOrder.amount}
-                note={`Look Like order ${upiOrder.orderId}`}
               />
 
               <div className="relative flex items-center gap-3">
