@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
-import { Copy, Upload, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Copy, Download, Upload, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { CartItem } from '@/lib/cart-store'
 import type { CheckoutCustomer, UpiOrderResponse } from '@/lib/payments-api'
 import { confirmUpiOrder, createUpiOrder, getPaymentConfig } from '@/lib/payments-api'
 import { clearCart } from '@/lib/cart-store'
 import { compressImageFile } from '@/lib/compress-image'
+import { downloadQrPng } from '@/lib/download-qr'
 import { tryOwnerWhatsAppFallback } from '@/lib/shop-contact'
 import type { calcCartTotals } from '@/lib/delivery'
 
@@ -39,6 +40,8 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
   const [upiReference, setUpiReference] = useState('')
   const [paymentProof, setPaymentProof] = useState('')
   const [copied, setCopied] = useState(false)
+  const [qrSaved, setQrSaved] = useState(false)
+  const qrWrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -55,6 +58,7 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
       setPaymentProof('')
       setError('')
       setCopied(false)
+      setQrSaved(false)
     }
   }, [open])
 
@@ -140,6 +144,23 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
     }
   }
 
+  const saveQrImage = async () => {
+    if (!upiOrder) return
+    const svg = qrWrapRef.current?.querySelector('svg')
+    if (!svg) {
+      setError('QR code is not ready yet')
+      return
+    }
+    try {
+      setError('')
+      await downloadQrPng(svg, `looklike-pay-${upiOrder.amount}-rs.png`)
+      setQrSaved(true)
+      window.setTimeout(() => setQrSaved(false), 2000)
+    } catch {
+      setError('Could not save QR image. Try again or screenshot the code.')
+    }
+  }
+
   const copyUpiId = async () => {
     if (!upiOrder?.upiId) return
     try {
@@ -204,11 +225,22 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
 
               <div className="border border-black/[0.08] p-4 text-center">
                 <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40 mb-3">
-                  Or scan QR (optional)
+                  Scan QR in GPay
                 </p>
-                <div className="inline-flex p-2 bg-white border border-black/[0.08]">
-                  <QRCodeSVG value={upiOrder.upiUri} size={160} level="M" includeMargin />
+                <div ref={qrWrapRef} className="inline-flex p-2 bg-white border border-black/[0.08]">
+                  <QRCodeSVG value={upiOrder.upiUri} size={200} level="M" includeMargin />
                 </div>
+                <p className="font-body text-[12px] text-black/50 mt-3">
+                  Save the QR, open GPay → Scan → choose this image from your gallery.
+                </p>
+                <button
+                  type="button"
+                  onClick={saveQrImage}
+                  className="mt-4 inline-flex items-center justify-center gap-2 h-[42px] px-5 border border-black/15 bg-white font-body text-[13px] font-medium uppercase tracking-[0.04em] text-black hover:border-black/30 transition-colors"
+                >
+                  <Download size={16} />
+                  {qrSaved ? 'Downloaded' : 'Save QR'}
+                </button>
               </div>
 
               <div>
