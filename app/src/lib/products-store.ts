@@ -9,6 +9,8 @@ export type Product = {
   image: string
   size?: string
   description?: string
+  /** Weight per piece in kg (for delivery charge) */
+  weightKg?: number
   createdAt: number
   updatedAt: number
 }

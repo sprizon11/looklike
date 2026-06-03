@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import CheckoutModal from '@/components/CheckoutModal'
 import { clearCart, readCart, removeCartItem, subscribeCart, updateCartItem } from '@/lib/cart-store'
+import { calcCartTotals, formatWeightKg } from '@/lib/delivery'
 
 export default function Cart() {
   const navigate = useNavigate()
@@ -16,7 +17,7 @@ export default function Cart() {
     return subscribeCart(() => setItems(readCart()))
   }, [])
 
-  const total = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items])
+  const totals = useMemo(() => calcCartTotals(items), [items])
 
   return (
     <div className="min-h-screen bg-white">
@@ -74,6 +75,9 @@ export default function Cart() {
                         <div>
                           <p className="font-body text-[14px] font-medium text-black">{i.name}</p>
                           <p className="font-body text-[12px] text-black/50 mt-1">Size: {i.size}</p>
+                          <p className="font-body text-[12px] text-black/40 mt-0.5">
+                            {(i.weightKg ?? 0.5) * i.quantity} kg total ({i.weightKg ?? 0.5} kg each)
+                          </p>
                           <p className="font-body text-[13px] text-black/60 mt-2">Rs. {i.price}</p>
                         </div>
                         <button
@@ -125,12 +129,21 @@ export default function Cart() {
             <div className="border border-black/[0.06] p-6 h-fit">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Summary</p>
               <div className="mt-4 flex items-center justify-between">
-                <p className="font-body text-[14px] text-black/60">Items</p>
-                <p className="font-body text-[14px] text-black">{items.length}</p>
+                <p className="font-body text-[14px] text-black/60">Subtotal</p>
+                <p className="font-body text-[14px] text-black">Rs. {totals.subtotal}</p>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <p className="font-body text-[14px] text-black/60">Total</p>
-                <p className="font-body text-[16px] font-medium text-black">Rs. {total}</p>
+                <p className="font-body text-[14px] text-black/60">
+                  Delivery ({formatWeightKg(totals.totalWeightKg)})
+                </p>
+                <p className="font-body text-[14px] text-black">Rs. {totals.deliveryCharge}</p>
+              </div>
+              <p className="font-body text-[11px] text-black/35 mt-1">
+                Rs. 60 for 1 kg · Rs. 100 for 2 kg · +Rs. 50 per extra kg
+              </p>
+              <div className="mt-3 pt-3 border-t border-black/[0.06] flex items-center justify-between">
+                <p className="font-body text-[14px] font-medium text-black">Total</p>
+                <p className="font-body text-[16px] font-medium text-black">Rs. {totals.total}</p>
               </div>
 
               <button
@@ -140,7 +153,7 @@ export default function Cart() {
                 Order Now
               </button>
               <p className="mt-3 font-body text-[12px] text-black/40">
-                Pay with UPI (GPay / PhonePe) or choose Cash on Delivery.
+                Pay with UPI — copy UPI ID, pay, and upload payment screenshot.
               </p>
             </div>
           </div>
@@ -151,7 +164,7 @@ export default function Cart() {
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
         items={items}
-        total={total}
+        totals={totals}
         onSuccess={(message) => {
           setSuccessMessage(message || '')
           setOrderSuccess(true)

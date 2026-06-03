@@ -6,6 +6,8 @@ export type CartItem = {
   size: string
   color: string
   quantity: number
+  /** Weight per piece in kg */
+  weightKg?: number
 }
 
 const STORAGE_KEY = 'looklike.cart.v1'

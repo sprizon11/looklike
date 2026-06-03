@@ -63,6 +63,7 @@ export default function Admin() {
     stock: '0',
     size: '',
     description: '',
+    weightKg: '0.5',
     image: '' as string,
   })
 
@@ -183,6 +184,7 @@ export default function Admin() {
       stock: '0',
       size: '',
       description: '',
+      weightKg: '0.5',
       image: '',
     })
     setProductModalOpen(true)
@@ -199,6 +201,7 @@ export default function Admin() {
       image: p.image,
       size: p.size || '',
       description: p.description || '',
+      weightKg: String(p.weightKg ?? 0.5),
     })
     setProductModalOpen(true)
   }
@@ -280,6 +283,7 @@ export default function Admin() {
     const image = productForm.image.trim()
     const size = productForm.size.trim()
     const description = productForm.description.trim()
+    const weightKg = Number(productForm.weightKg)
 
     if (!name) {
       setProductError('Product name is required')
@@ -297,14 +301,18 @@ export default function Admin() {
       setProductError('Please upload an image')
       return
     }
+    if (!Number.isFinite(weightKg) || weightKg <= 0) {
+      setProductError('Weight must be a valid number in kg (e.g. 0.5 or 1)')
+      return
+    }
 
     setProductError('')
     setProductSaving(true)
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, { name, category, price, stock, image, size, description })
+        await updateProduct(editingProduct.id, { name, category, price, stock, image, size, description, weightKg })
       } else {
-        await addProduct({ name, category, price, stock, image, size, description })
+        await addProduct({ name, category, price, stock, image, size, description, weightKg })
       }
       closeProductModal()
     } catch (e) {
@@ -853,8 +861,20 @@ export default function Admin() {
                         )}
                       </div>
                       <div>
-                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Total</p>
-                        <p className="mt-1 text-black font-medium">Rs. {selectedOrder.amount}</p>
+                        <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Amount</p>
+                        {selectedOrder.subtotal != null && (
+                          <p className="mt-1 text-black/70">Subtotal: Rs. {selectedOrder.subtotal}</p>
+                        )}
+                        {selectedOrder.deliveryCharge != null && (
+                          <p className="text-black/70">
+                            Delivery
+                            {selectedOrder.totalWeightKg != null
+                              ? ` (${selectedOrder.totalWeightKg.toFixed(2)} kg)`
+                              : ''}
+                            : Rs. {selectedOrder.deliveryCharge}
+                          </p>
+                        )}
+                        <p className="mt-1 text-black font-medium">Total: Rs. {selectedOrder.amount}</p>
                       </div>
                       {selectedOrder.paymentProof && (
                         <div className="md:col-span-2 space-y-2">
@@ -1057,6 +1077,17 @@ export default function Admin() {
                     className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
                     placeholder="S, M, L, XL"
                   />
+                </div>
+                <div>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Weight (kg)</label>
+                  <input
+                    inputMode="decimal"
+                    value={productForm.weightKg}
+                    onChange={(e) => setProductForm((s) => ({ ...s, weightKg: e.target.value }))}
+                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                    placeholder="0.5"
+                  />
+                  <p className="font-body text-[11px] text-black/35 mt-1">Per piece — used for delivery charge</p>
                 </div>
               </div>
 

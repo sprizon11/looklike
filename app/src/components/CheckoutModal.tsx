@@ -3,16 +3,19 @@ import { Copy, Upload, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { CartItem } from '@/lib/cart-store'
 import type { CheckoutCustomer, UpiOrderResponse } from '@/lib/payments-api'
-import { confirmUpiOrder, createCodOrder, createUpiOrder, getPaymentConfig } from '@/lib/payments-api'
+import { confirmUpiOrder, createUpiOrder, getPaymentConfig } from '@/lib/payments-api'
 import { clearCart } from '@/lib/cart-store'
 import { compressImageFile } from '@/lib/compress-image'
 import { tryOwnerWhatsAppFallback } from '@/lib/shop-contact'
+import type { calcCartTotals } from '@/lib/delivery'
+
+type CartTotals = ReturnType<typeof calcCartTotals>
 
 type Props = {
   open: boolean
   onClose: () => void
   items: CartItem[]
-  total: number
+  totals: CartTotals
   onSuccess: (message?: string) => void
 }
 
@@ -26,7 +29,7 @@ const emptyForm: CheckoutCustomer = {
   pincode: '',
 }
 
-export default function CheckoutModal({ open, onClose, items, total, onSuccess }: Props) {
+export default function CheckoutModal({ open, onClose, items, totals, onSuccess }: Props) {
   const [form, setForm] = useState<CheckoutCustomer>(emptyForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -91,26 +94,6 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
     if (email) customer.email = email
     if (state) customer.state = state
     return customer
-  }
-
-  const placeCodOrder = async () => {
-    setError('')
-    const customer = buildCustomer()
-    if (!customer) return
-
-    setLoading(true)
-    try {
-      const result = await createCodOrder({ customer, items })
-      tryOwnerWhatsAppFallback(result)
-      clearCart()
-      setForm(emptyForm)
-      onSuccess('Order placed! Pay cash when your order is delivered.')
-      onClose()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not place order')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const startUpiPayment = async () => {
@@ -178,7 +161,10 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
               <h2 className="font-display text-[22px] font-normal text-black">
                 {step === 'upi' ? 'Pay with UPI' : 'Checkout'}
               </h2>
-              <p className="font-body text-[12px] text-black/40 mt-1">Total: Rs. {total.toLocaleString('en-IN')}</p>
+              <p className="font-body text-[12px] text-black/40 mt-1">
+                Subtotal Rs. {totals.subtotal} + Delivery Rs. {totals.deliveryCharge} = Rs.{' '}
+                {totals.total.toLocaleString('en-IN')}
+              </p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-black/[0.04] transition-colors" aria-label="Close">
               <X size={18} className="text-black/50" />
@@ -384,21 +370,13 @@ export default function CheckoutModal({ open, onClose, items, total, onSuccess }
                     onClick={startUpiPayment}
                     className="w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors disabled:opacity-60"
                   >
-                    {loading ? 'Please wait…' : `Pay Rs. ${total.toLocaleString('en-IN')} with UPI`}
+                    {loading ? 'Please wait…' : `Continue — Pay Rs. ${totals.total.toLocaleString('en-IN')} with UPI`}
                   </button>
                 ) : (
                   <p className="font-body text-[12px] text-amber-700 bg-amber-50 border border-amber-100 p-3">
-                    UPI is not configured on the server yet. Use Cash on Delivery, or add UPI_ID on Render.
+                    UPI is not configured on the server yet. Add UPI_ID on Render to accept orders.
                   </p>
                 )}
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={placeCodOrder}
-                  className="w-full h-[48px] border border-black/15 font-body text-[14px] font-medium uppercase tracking-[0.06em] text-black hover:border-black/30 transition-colors disabled:opacity-60"
-                >
-                  {loading ? 'Please wait…' : 'Cash on Delivery'}
-                </button>
               </div>
             </>
           )}

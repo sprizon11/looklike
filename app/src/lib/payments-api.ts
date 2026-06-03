@@ -26,6 +26,10 @@ export type UpiOrderResponse = {
   ok: boolean
   orderId: string
   amount: number
+  subtotal: number
+  deliveryCharge: number
+  totalWeightKg: number
+  billedKg: number
   currency: string
   upiId: string
   payeeName: string
@@ -67,6 +71,7 @@ function mapCartItems(items: CartItem[]) {
     quantity: i.quantity,
     size: i.size,
     image: i.image,
+    weightKg: i.weightKg,
   }))
 }
 

@@ -54,6 +54,7 @@ export default function ProductDetail() {
       size,
       color: '',
       quantity,
+      weightKg: product.weightKg ?? 0.5,
     })
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2200)

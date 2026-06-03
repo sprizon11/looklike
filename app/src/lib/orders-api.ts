@@ -24,6 +24,9 @@ export type AdminOrder = {
   customer: OrderCustomer
   items: OrderItem[]
   amount: number
+  subtotal?: number
+  deliveryCharge?: number
+  totalWeightKg?: number
   currency: string
   status: 'paid' | 'cod' | 'upi'
   paymentMethod?: 'online' | 'cod' | 'upi'

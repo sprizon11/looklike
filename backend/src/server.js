@@ -7,7 +7,7 @@ import express from 'express'
 import cors from 'cors'
 import Razorpay from 'razorpay'
 import { z } from 'zod'
-import { notifyShopWhatsAppOrder } from './whatsapp-notify.js'
+import { calcOrderTotals } from './delivery.js'
 
 const app = express()
 
@@ -56,6 +56,7 @@ const ProductSchema = z.object({
   image: z.string().min(1),
   size: z.string().optional(),
   description: z.string().optional(),
+  weightKg: z.number().positive().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
@@ -68,6 +69,7 @@ const ProductCreateSchema = z.object({
   image: z.string().min(1),
   size: z.string().optional(),
   description: z.string().optional(),
+  weightKg: z.number().positive().optional(),
 })
 
 const ProductUpdateSchema = ProductCreateSchema.partial()
@@ -79,6 +81,7 @@ const CartItemSchema = z.object({
   quantity: z.number().int().positive(),
   size: z.string().min(1),
   image: z.string().optional(),
+  weightKg: z.number().positive().optional(),
 })
 
 const CustomerSchema = z.object({
@@ -108,6 +111,9 @@ const OrderSchema = z.object({
   customer: CustomerSchema,
   items: z.array(CartItemSchema),
   amount: z.number().nonnegative(),
+  subtotal: z.number().nonnegative().optional(),
+  deliveryCharge: z.number().nonnegative().optional(),
+  totalWeightKg: z.number().nonnegative().optional(),
   currency: z.literal('INR'),
   status: z.enum(['pending', 'paid', 'failed', 'cod', 'upi_pending', 'upi']),
   paymentMethod: z.enum(['online', 'cod', 'upi']).optional(),
@@ -283,7 +289,7 @@ async function writeOrders(next) {
 }
 
 function calcTotal(items) {
-  return items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  return calcOrderTotals(items).amount
 }
 
 function buildUpiPayUri({ upiId, payeeName, amount, note }, { includeNote = true } = {}) {
@@ -434,8 +440,8 @@ app.post('/api/orders/upi', async (req, res) => {
     return
   }
 
-  const amount = calcTotal(input.data.items)
-  if (amount <= 0) {
+  const totals = calcOrderTotals(input.data.items)
+  if (totals.amount <= 0) {
     res.status(400).json({ error: 'Invalid order amount' })
     return
   }
@@ -451,7 +457,10 @@ app.post('/api/orders/upi', async (req, res) => {
     id: orderId,
     customer,
     items: input.data.items,
-    amount,
+    subtotal: totals.subtotal,
+    deliveryCharge: totals.deliveryCharge,
+    totalWeightKg: totals.totalWeightKg,
+    amount: totals.amount,
     currency: 'INR',
     status: 'upi_pending',
     paymentMethod: 'upi',
@@ -465,14 +474,18 @@ app.post('/api/orders/upi', async (req, res) => {
   const upiUri = buildUpiPayUri({
     upiId: UPI_ID,
     payeeName: UPI_PAYEE_NAME,
-    amount,
+    amount: totals.amount,
     note: 'LookLike',
   })
 
   res.status(201).json({
     ok: true,
     orderId,
-    amount,
+    amount: totals.amount,
+    subtotal: totals.subtotal,
+    deliveryCharge: totals.deliveryCharge,
+    totalWeightKg: totals.totalWeightKg,
+    billedKg: totals.billedKg,
     currency: 'INR',
     upiId: UPI_ID,
     payeeName: UPI_PAYEE_NAME,
@@ -582,6 +595,7 @@ app.post('/api/products', async (req, res) => {
   const next = {
     id: id(),
     ...input.data,
+    weightKg: input.data.weightKg ?? 0.5,
     createdAt: t,
     updatedAt: t,
   }

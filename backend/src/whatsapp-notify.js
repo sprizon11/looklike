@@ -43,6 +43,12 @@ export function formatOrderWhatsAppMessage(order) {
     lines.push('', 'Payment screenshot: uploaded on website')
   }
 
+  if (order.subtotal != null) {
+    lines.push(`Subtotal: Rs. ${order.subtotal}`)
+  }
+  if (order.deliveryCharge != null) {
+    lines.push(`Delivery (${order.totalWeightKg?.toFixed(2) ?? '?'} kg): Rs. ${order.deliveryCharge}`)
+  }
   lines.push('', '— Look Like website')
 
   return lines.join('\n')

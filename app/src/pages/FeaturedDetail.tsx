@@ -88,6 +88,7 @@ export default function FeaturedDetail() {
                     size: activeSize,
                     color: 'Default',
                     quantity: 1,
+                    weightKg: 0.5,
                   })
                   navigate('/cart')
                 }}
