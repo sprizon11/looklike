@@ -5,6 +5,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        gold: {
+          DEFAULT: "#c9a227",
+          light: "#e8c873",
+          soft: "#f4e6bd",
+          dark: "#9c7c1a",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

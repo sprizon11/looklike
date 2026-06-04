@@ -64,7 +64,7 @@ export default function FeaturedCollection() {
     >
       <div className="max-w-[1440px] mx-auto">
         <div className="mb-10 sm:mb-14">
-          <p className="font-body text-[11px] uppercase tracking-[0.18em] text-black/40">
+          <p className="font-body text-[11px] uppercase tracking-[0.18em] text-gold-dark">
             Curated picks
           </p>
           <h2
@@ -73,7 +73,7 @@ export default function FeaturedCollection() {
           >
             New Arrivals
           </h2>
-          <div className="mt-5 h-[1px] w-[120px] bg-black/10" />
+          <div className="gold-divider mt-5 w-[120px]" />
         </div>
 
         <div ref={itemsRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
@@ -101,7 +101,7 @@ export default function FeaturedCollection() {
                   className="inline-block mt-2 font-body text-[13px] font-normal uppercase tracking-[0.06em] text-black relative"
                 >
                   View Details
-                  <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-black transition-all duration-300 group-hover:w-full" />
+                  <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-gold-gradient transition-all duration-300 group-hover:w-full" />
                 </button>
               </div>
             </div>

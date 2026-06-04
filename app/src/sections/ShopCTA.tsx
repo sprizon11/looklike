@@ -35,11 +35,11 @@ export default function ShopCTA() {
   return (
     <section ref={sectionRef} className="bg-white py-24 sm:py-28 md:py-[140px] px-5 sm:px-8 md:px-[60px]">
       <div ref={contentRef} className="max-w-[1440px] mx-auto flex flex-col items-center text-center">
-        <span className="cta-animate font-body text-[11px] uppercase tracking-[0.4em] text-black/40 mb-5">
+        <span className="cta-animate font-body text-[11px] uppercase tracking-[0.4em] text-gold-dark mb-5">
           New Season
         </span>
         <h2 className="cta-animate font-display text-[36px] sm:text-[44px] md:text-[52px] font-normal leading-[1.08] text-black max-w-[640px] text-balance">
-          Ready to Upgrade Your <span className="italic font-medium">Wardrobe?</span>
+          Ready to Upgrade Your <span className="italic font-medium gold-text">Wardrobe?</span>
         </h2>
         <p className="cta-animate font-body text-[15px] sm:text-[16px] font-light text-black/55 mt-5 max-w-[440px]">
           Browse our latest collection of premium ladies wear, crafted for everyday elegance.
@@ -47,7 +47,7 @@ export default function ShopCTA() {
         <button
           type="button"
           onClick={() => navigate('/products')}
-          className="cta-animate mt-9 inline-flex items-center h-[54px] px-12 rounded-full bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.14em] border border-black transition-all duration-300 hover:bg-white hover:text-black hover:tracking-[0.18em]"
+          className="cta-animate mt-9 inline-flex items-center h-[54px] px-12 rounded-full bg-black text-gold-light font-body text-[13px] font-medium uppercase tracking-[0.14em] border border-gold/40 transition-all duration-300 hover:bg-gold-gradient hover:text-black hover:border-transparent hover:tracking-[0.18em]"
         >
           Shop Now
         </button>

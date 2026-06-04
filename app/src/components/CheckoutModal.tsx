@@ -11,6 +11,7 @@ import { tryOwnerWhatsAppFallback } from '@/lib/shop-contact'
 import { calcCartTotals } from '@/lib/delivery'
 import { INDIAN_STATES } from '@/lib/indian-states'
 import CheckoutOrderSummary from '@/components/CheckoutOrderSummary'
+import OrderDisclaimer from '@/components/OrderDisclaimer'
 
 type Props = {
   open: boolean
@@ -318,12 +319,14 @@ export default function CheckoutModal({ open, onClose, items, initialState, onSu
 
               {error && <p className="font-body text-[13px] text-red-500">{error}</p>}
 
-              <div className="flex flex-col gap-3 pb-8">
+              <OrderDisclaimer className="mt-2" compact />
+
+              <div className="flex flex-col gap-3 pb-8 mt-4">
                 <button
                   type="button"
                   disabled={loading || !paymentProof}
                   onClick={confirmUpiPayment}
-                  className="w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors disabled:opacity-60"
+                  className="w-full h-[48px] bg-black text-gold-light font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent disabled:opacity-60"
                 >
                   {loading ? 'Please wait…' : 'Submit order'}
                 </button>
@@ -430,13 +433,15 @@ export default function CheckoutModal({ open, onClose, items, initialState, onSu
 
               {error && <p className="mt-4 font-body text-[13px] text-red-500">{error}</p>}
 
-              <div className="mt-8 pb-10">
+              <OrderDisclaimer className="mt-6" compact />
+
+              <div className="mt-6 pb-10">
                 {upiEnabled ? (
                   <button
                     type="button"
                     disabled={payDisabled}
                     onClick={startUpiPayment}
-                    className="w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors disabled:opacity-60"
+                    className="w-full h-[48px] bg-black text-gold-light font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent disabled:opacity-60"
                   >
                     {loading ? 'Please wait…' : `Pay Rs. ${totals.total.toLocaleString('en-IN')} with UPI`}
                   </button>

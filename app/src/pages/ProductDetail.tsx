@@ -5,6 +5,7 @@ import { useProducts } from '@/hooks/use-products'
 import { addToCart } from '@/lib/cart-store'
 import { buildWhatsAppUrl } from '@/lib/shop-contact'
 import { normalizeProductColors, type ProductColor } from '@/lib/product-colors'
+import OrderDisclaimer from '@/components/OrderDisclaimer'
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
@@ -114,7 +115,7 @@ export default function ProductDetail() {
             <h1 className="font-display text-[30px] sm:text-[38px] font-normal leading-[1.15] text-black mt-2">
               {product.name}
             </h1>
-            <p className="font-body text-[22px] font-medium text-black mt-3">
+            <p className="font-body text-[22px] font-semibold text-gold-dark mt-3">
               Rs. {product.price}
             </p>
 
@@ -138,7 +139,7 @@ export default function ProductDetail() {
                         type="button"
                         onClick={() => setSelectedColorId(c.id)}
                         className={`shrink-0 w-[108px] text-left border-2 transition-colors ${
-                          active ? 'border-[#1a73e8]' : 'border-black/10 hover:border-black/25'
+                          active ? 'border-gold' : 'border-black/10 hover:border-gold/40'
                         }`}
                       >
                         <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
@@ -146,7 +147,7 @@ export default function ProductDetail() {
                         </div>
                         <div className="p-2 border-t border-black/[0.06]">
                           <p className="font-body text-[12px] font-medium text-black truncate">{c.name}</p>
-                          <p className="font-body text-[12px] text-black mt-0.5">Rs. {product.price}</p>
+                          <p className="font-body text-[12px] font-medium text-gold-dark mt-0.5">Rs. {product.price}</p>
                         </div>
                       </button>
                     )
@@ -168,8 +169,8 @@ export default function ProductDetail() {
                       onClick={() => setSelectedSize(size)}
                       className={`min-w-[48px] h-[42px] px-4 border font-body text-[13px] transition-colors ${
                         active
-                          ? 'bg-black text-white border-black'
-                          : 'bg-white text-black border-black/15 hover:border-black/40'
+                          ? 'bg-black text-gold-light border-black'
+                          : 'bg-white text-black border-black/15 hover:border-gold'
                       }`}
                     >
                       {size}
@@ -177,7 +178,12 @@ export default function ProductDetail() {
                   )
                 })}
               </div>
+              <p className="font-body text-[11px] text-black/45 mt-2">
+                Check the size chart / size guide before you order.
+              </p>
             </div>
+
+            <OrderDisclaimer className="mt-6" compact />
 
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
@@ -205,7 +211,7 @@ export default function ProductDetail() {
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleAddToCart}
-                className="inline-flex items-center justify-center gap-2 h-[52px] px-8 bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
+                className="inline-flex items-center justify-center gap-2 h-[52px] px-8 bg-black text-gold-light font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent"
               >
                 {added ? (
                   <>
@@ -221,7 +227,7 @@ export default function ProductDetail() {
               </button>
               <button
                 onClick={handleWhatsAppOrder}
-                className="inline-flex items-center justify-center h-[52px] px-8 border border-black text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black hover:text-white transition-colors"
+                className="inline-flex items-center justify-center h-[52px] px-8 border border-black text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] transition-colors hover:bg-black hover:text-gold-light"
               >
                 Order on WhatsApp
               </button>

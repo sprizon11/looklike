@@ -113,7 +113,7 @@ export default function Navigation() {
             <button
               key={link.label}
               onClick={() => scrollToSection(link.href)}
-              className={`font-body text-[13px] font-medium uppercase tracking-[0.08em] transition-colors duration-300 hover:opacity-70 ${
+              className={`gold-underline font-body text-[13px] font-medium uppercase tracking-[0.08em] transition-colors duration-300 hover:text-gold ${
                 scrolled ? 'text-black' : 'text-white'
               }`}
             >
@@ -130,7 +130,7 @@ export default function Navigation() {
           >
             <ShoppingBag size={20} strokeWidth={1.5} />
             {count > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-black text-white text-[10px] font-medium flex items-center justify-center border border-white">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gold-gradient text-black text-[10px] font-semibold flex items-center justify-center border border-white">
                 {count}
               </span>
             )}
@@ -169,20 +169,20 @@ export default function Navigation() {
               <button
                 key={link.label}
                 onClick={() => scrollToSection(link.href)}
-                className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2"
+                className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2 hover:text-gold transition-colors"
               >
                 {link.label}
               </button>
             ))}
             <button
               onClick={goToAdmin}
-              className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2"
+              className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2 hover:text-gold transition-colors"
             >
               ADMIN
             </button>
             <button
               onClick={goToCart}
-              className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2"
+              className="font-body text-[14px] font-medium uppercase tracking-[0.08em] text-black text-left py-2 hover:text-gold transition-colors"
             >
               CART
             </button>

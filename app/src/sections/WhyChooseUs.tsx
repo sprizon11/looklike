@@ -69,7 +69,7 @@ export default function WhyChooseUs() {
           ref={titleRef}
           className="font-display text-[36px] font-normal text-center text-white mb-[60px]"
         >
-          Why Choose Look Like
+          Why Choose <span className="gold-text">Look Like</span>
         </h2>
 
         <div ref={itemsRef} className="grid grid-cols-1 md:grid-cols-3 gap-[40px]">
@@ -77,8 +77,8 @@ export default function WhyChooseUs() {
             const Icon = feature.icon
             return (
               <div key={feature.title} className="feature-item flex flex-col items-center text-center">
-                <div className="w-[48px] h-[48px] flex items-center justify-center">
-                  <Icon size={24} strokeWidth={1.5} className="text-white" />
+                <div className="w-[58px] h-[58px] flex items-center justify-center rounded-full border border-gold/40 bg-gold/5">
+                  <Icon size={24} strokeWidth={1.5} className="text-gold-light" />
                 </div>
                 <h3 className="font-body text-[18px] font-medium text-white mt-5">
                   {feature.title}

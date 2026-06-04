@@ -103,6 +103,72 @@
     text-wrap: balance;
   }
 
+  /* ---- Gold accents ---- */
+  .text-gold {
+    color: #c9a227;
+  }
+
+  .gold-text {
+    background: linear-gradient(100deg, #9c7c1a 0%, #c9a227 35%, #f1d98c 55%, #c9a227 75%, #9c7c1a 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .gold-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #c9a227 50%, transparent 100%);
+  }
+
+  .gold-divider-strong {
+    background: linear-gradient(90deg, #9c7c1a 0%, #e8c873 50%, #9c7c1a 100%);
+  }
+
+  .bg-gold-gradient {
+    background: linear-gradient(120deg, #b8860b 0%, #c9a227 45%, #e8c873 100%);
+    background-size: 180% auto;
+    transition: background-position 0.5s ease, box-shadow 0.4s ease;
+  }
+
+  .bg-gold-gradient:hover {
+    background-position: right center;
+    box-shadow: 0 14px 32px -16px rgba(201, 162, 39, 0.7);
+  }
+
+  .border-gold {
+    border-color: #c9a227;
+  }
+
+  .gold-ring-hover {
+    transition: border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .gold-ring-hover:hover {
+    border-color: #c9a227;
+    color: #9c7c1a;
+  }
+
+  .gold-underline {
+    position: relative;
+  }
+
+  .gold-underline::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    width: 0;
+    height: 1.5px;
+    background: linear-gradient(90deg, #c9a227, #e8c873);
+    transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .gold-underline:hover::after {
+    width: 100%;
+  }
+
   .premium-shadow {
     box-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.35);
   }

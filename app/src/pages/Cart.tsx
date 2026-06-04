@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import CheckoutModal from '@/components/CheckoutModal'
+import OrderDisclaimer from '@/components/OrderDisclaimer'
 import { clearCart, readCart, removeCartItem, subscribeCart, updateCartItem } from '@/lib/cart-store'
 import { calcCartTotals, formatDeliveryNote, formatWeightKg, isTamilNadu } from '@/lib/delivery'
 import { INDIAN_STATES } from '@/lib/indian-states'
@@ -69,7 +70,7 @@ export default function Cart() {
             <p className="font-body text-[14px] text-black/60">Your cart is empty.</p>
             <button
               onClick={() => navigate('/')}
-              className="mt-5 inline-flex items-center justify-center h-[44px] px-6 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
+              className="mt-5 inline-flex items-center justify-center h-[44px] px-6 bg-black text-gold-light font-body text-[13px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent"
             >
               Continue shopping
             </button>
@@ -192,9 +193,11 @@ export default function Cart() {
                 <p className="font-body text-[16px] font-medium text-black">Rs. {totals.total}</p>
               </div>
 
+              <OrderDisclaimer className="mt-5" compact />
+
               <button
                 onClick={() => setCheckoutOpen(true)}
-                className="mt-6 w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
+                className="mt-5 w-full h-[48px] bg-black text-gold-light font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent"
               >
                 Order Now — Rs. {totals.total}
               </button>

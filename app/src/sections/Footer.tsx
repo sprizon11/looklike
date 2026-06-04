@@ -23,8 +23,9 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-body text-[13px] font-medium uppercase tracking-[0.08em] text-black mb-4">
+            <h4 className="font-body text-[13px] font-medium uppercase tracking-[0.08em] text-black mb-4 inline-flex flex-col">
               SHOP
+              <span className="mt-1.5 h-[2px] w-7 bg-gold-gradient" />
             </h4>
             <ul className="space-y-2">
               {[
@@ -47,8 +48,9 @@ export default function Footer() {
 
           {/* Information */}
           <div>
-            <h4 className="font-body text-[13px] font-medium uppercase tracking-[0.08em] text-black mb-4">
+            <h4 className="font-body text-[13px] font-medium uppercase tracking-[0.08em] text-black mb-4 inline-flex flex-col">
               HELP
+              <span className="mt-1.5 h-[2px] w-7 bg-gold-gradient" />
             </h4>
             <ul className="space-y-2">
               {['About Us', 'Shipping Info', 'Return Policy'].map((label) => (
@@ -69,8 +71,9 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="font-body text-[13px] font-medium uppercase tracking-[0.08em] text-black mb-4">
+            <h4 className="font-body text-[13px] font-medium uppercase tracking-[0.08em] text-black mb-4 inline-flex flex-col">
               CONTACT
+              <span className="mt-1.5 h-[2px] w-7 bg-gold-gradient" />
             </h4>
             <p className="font-body text-[14px] font-normal text-black/50 leading-[1.7]">
               31/10A, Jawahar Nagar,<br />
@@ -92,7 +95,8 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-[60px] pt-5 border-t border-black/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="gold-divider mt-[60px]" />
+        <div className="pt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="font-body text-[12px] text-black/30">
             2025 Look Like. All rights reserved.
           </p>
@@ -100,7 +104,7 @@ export default function Footer() {
             href="https://instagram.com/look_like_tirupur"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-body text-[12px] text-black/50 hover:text-black transition-colors duration-200"
+            className="font-body text-[12px] text-black/50 hover:text-gold-dark transition-colors duration-200"
           >
             Follow us on Instagram
           </a>

@@ -132,11 +132,11 @@ export default function ProductsGrid({
     <section id="products" ref={sectionRef} className="bg-white py-16 sm:py-20 md:py-24 px-5 sm:px-8 md:px-14">
       <div className="max-w-[1440px] mx-auto">
         <div ref={headerRef} className="mb-8 sm:mb-10">
-          <p className="font-body text-[11px] uppercase tracking-[0.18em] text-black/40">The Collection</p>
+          <p className="font-body text-[11px] uppercase tracking-[0.18em] text-gold-dark">The Collection</p>
           <h2 className="font-display text-[34px] sm:text-[40px] font-normal text-black mt-2 leading-[1.1] tracking-[-0.02em]">
             Our Products
           </h2>
-          <div className="mt-5 h-px w-[120px] bg-black/10" />
+          <div className="gold-divider mt-5 w-[120px]" />
 
           {showFilters && (
             <div className="mt-6 flex flex-col gap-4">
@@ -156,8 +156,8 @@ export default function ProductsGrid({
                     onClick={() => setCategoryFilter(opt.value)}
                     className={`h-[36px] px-4 font-body text-[12px] uppercase tracking-[0.06em] border transition-colors ${
                       categoryFilter === opt.value
-                        ? 'bg-black text-white border-black'
-                        : 'border-black/15 text-black/60 hover:border-black/30 hover:text-black'
+                        ? 'bg-black text-gold-light border-black'
+                        : 'border-black/15 text-black/60 hover:border-gold hover:text-gold-dark'
                     }`}
                   >
                     {opt.label}
@@ -173,8 +173,8 @@ export default function ProductsGrid({
                     onClick={() => setPriceFilter(opt.value)}
                     className={`h-[36px] px-4 font-body text-[12px] uppercase tracking-[0.06em] border transition-colors ${
                       priceFilter === opt.value
-                        ? 'bg-black text-white border-black'
-                        : 'border-black/15 text-black/60 hover:border-black/30 hover:text-black'
+                        ? 'bg-black text-gold-light border-black'
+                        : 'border-black/15 text-black/60 hover:border-gold hover:text-gold-dark'
                     }`}
                   >
                     {opt.label}
@@ -208,11 +208,11 @@ export default function ProductsGrid({
                 <div className="mt-3">
                   <button
                     onClick={() => goToProduct(product.id)}
-                    className="font-body text-[15px] font-medium text-[#212121] text-left hover:underline underline-offset-4"
+                    className="font-body text-[15px] font-medium text-[#212121] text-left transition-colors hover:text-gold-dark"
                   >
                     {product.name}
                   </button>
-                  <p className="font-body text-[14px] font-normal text-black/50 mt-1">Rs. {product.price}</p>
+                  <p className="font-body text-[14px] font-semibold text-gold-dark mt-1">Rs. {product.price}</p>
                 </div>
               </div>
             ))}
@@ -224,7 +224,7 @@ export default function ProductsGrid({
             <button
               type="button"
               onClick={() => navigate('/products')}
-              className="inline-flex items-center h-[46px] px-8 rounded-full bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.08em] hover:bg-black/90 transition-colors"
+              className="inline-flex items-center h-[46px] px-8 rounded-full bg-black text-gold-light font-body text-[13px] font-medium uppercase tracking-[0.08em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent"
             >
               View All Products
             </button>

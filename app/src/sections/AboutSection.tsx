@@ -59,7 +59,7 @@ export default function AboutSection() {
 
           {/* Content */}
           <div ref={contentRef} className="w-full md:w-[55%] flex flex-col justify-center">
-            <span className="about-animate font-body text-[12px] font-normal uppercase tracking-[0.12em] text-black/40">
+            <span className="about-animate font-body text-[12px] font-normal uppercase tracking-[0.12em] text-gold-dark">
               ABOUT US
             </span>
             <h2 className="about-animate font-display text-[42px] font-normal leading-[1.15] tracking-[-0.01em] text-black mt-4">

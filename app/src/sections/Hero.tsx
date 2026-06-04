@@ -54,11 +54,11 @@ export default function Hero() {
         ref={contentRef}
         className="relative z-10 flex flex-col items-center justify-center min-h-[100svh] w-full text-center px-5 sm:px-8"
       >
-        <span className="font-body text-[11px] sm:text-[12px] uppercase tracking-[0.4em] text-white/70 mb-5">
+        <span className="font-body text-[11px] sm:text-[12px] uppercase tracking-[0.4em] text-gold-light mb-5">
           Look Like · Tirupur
         </span>
         <h1 className="font-display text-white text-[38px] sm:text-[52px] md:text-[64px] font-normal leading-[1.05] tracking-[-0.02em] max-w-[820px] mx-auto text-balance">
-          Effortless Style for <span className="italic font-medium">Every Woman</span>
+          Effortless Style for <span className="italic font-medium gold-text">Every Woman</span>
         </h1>
         <p className="font-body text-white/85 text-[15px] sm:text-[16px] font-light leading-[1.7] max-w-[520px] mt-6 mx-auto">
           Discover our curated collection of kurtis, leggings, and palazzos. Premium fabrics, timeless designs, delivered to your doorstep.
@@ -69,7 +69,7 @@ export default function Hero() {
             const el = document.getElementById('products')
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }}
-          className="mt-9 inline-flex items-center h-[52px] px-10 rounded-full bg-white text-black font-body text-[13px] font-medium uppercase tracking-[0.14em] transition-all duration-300 hover:bg-black hover:text-white hover:tracking-[0.18em]"
+          className="mt-9 inline-flex items-center h-[52px] px-10 rounded-full bg-white text-black font-body text-[13px] font-medium uppercase tracking-[0.14em] border border-transparent transition-all duration-300 hover:bg-gold-gradient hover:tracking-[0.18em]"
         >
           Explore Collection
         </button>
@@ -82,7 +82,7 @@ export default function Hero() {
       >
         <div className="relative w-[1px] h-[40px] bg-white/50">
           <div
-            className="absolute top-0 left-[-2px] w-[5px] h-[5px] rounded-full bg-white"
+            className="absolute top-0 left-[-2px] w-[5px] h-[5px] rounded-full bg-gold-light"
             style={{ animation: 'scroll-pulse 1.8s ease-in-out infinite' }}
           />
         </div>

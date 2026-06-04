@@ -22,8 +22,7 @@ export default function Logo({
   onClick,
 }: LogoProps) {
   const color = variant === 'light' ? 'text-white' : 'text-black'
-  const tagColor = variant === 'light' ? 'text-white/60' : 'text-black/45'
-  const lineColor = variant === 'light' ? 'bg-white/40' : 'bg-black/25'
+  const tagColor = variant === 'light' ? 'text-gold-light' : 'text-gold-dark'
   const s = SIZES[size]
   const alignClass = align === 'start' ? 'items-start' : 'items-center'
 
@@ -33,14 +32,20 @@ export default function Logo({
       className={`inline-flex flex-col ${alignClass} leading-none select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       <span className={`brand-logo ${s.word} ${color}`}>
-        <span className="brand-look">Look</span>{' '}
+        <span className="brand-look gold-text">Look</span>{' '}
         <span>Like</span>
       </span>
       {tagline && (
         <span className="mt-1.5 flex items-center gap-2">
-          <span className={`h-px ${s.line} ${lineColor}`} />
+          <span
+            className={`h-px ${s.line}`}
+            style={{ background: 'linear-gradient(90deg, transparent, #c9a227)' }}
+          />
           <span className={`brand-tagline ${s.tag} ${tagColor}`}>Ladies Wear</span>
-          <span className={`h-px ${s.line} ${lineColor}`} />
+          <span
+            className={`h-px ${s.line}`}
+            style={{ background: 'linear-gradient(90deg, #c9a227, transparent)' }}
+          />
         </span>
       )}
     </span>

@@ -2,7 +2,7 @@ export default function MarqueeTicker() {
   const message = "Free Shipping on Orders Above Rs. 499"
   const separator = (
     <span className="inline-block mx-6">
-      <span className="inline-block w-[3px] h-[3px] bg-white rotate-45" />
+      <span className="inline-block w-[4px] h-[4px] bg-gold-light rotate-45" />
     </span>
   )
 

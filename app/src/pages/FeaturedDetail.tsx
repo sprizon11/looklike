@@ -92,7 +92,7 @@ export default function FeaturedDetail() {
                   })
                   navigate('/cart')
                 }}
-                className="h-[48px] px-8 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
+                className="h-[48px] px-8 bg-black text-gold-light font-body text-[13px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent"
               >
                 Add to Cart
               </button>
