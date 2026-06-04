@@ -8,6 +8,30 @@ export function isLeggingsProduct(category?: string) {
   return (category || '').toLowerCase().includes('legging')
 }
 
+/** True when product uses the 48-colour leggings chart (by category or saved colour names). */
+export function isLeggingsCatalogProduct(product: {
+  category?: string
+  name?: string
+  colors?: ProductColor[]
+}) {
+  if (isLeggingsProduct(product.category)) return true
+  if ((product.name || '').toLowerCase().includes('legging')) return true
+  const colors = product.colors || []
+  const clCount = colors.filter((c) => /^CL\s*\d/i.test((c.name || '').trim())).length
+  return clCount >= 15
+}
+
+export function isLeggingsAdminForm(category: string, colors: ProductColor[]) {
+  if (isLeggingsProduct(category)) return true
+  return colors.filter((c) => /^CL\s*\d/i.test((c.name || '').trim())).length >= 15
+}
+
+export function shortLeggingsColorName(fullLabel: string) {
+  const parts = fullLabel.split('.')
+  if (parts.length >= 2) return parts.slice(1).join('.').trim()
+  return fullLabel.trim()
+}
+
 export function buildLeggingsProductColors(mainImage: string): ProductColor[] {
   const img = mainImage.trim()
   return LEGGINGS_COLOR_CATALOG.map((opt) => {
@@ -62,14 +86,25 @@ export function getCustomerColorOptions(product: {
   category: string
   image: string
   colors?: ProductColor[]
+  name?: string
 }): ProductColor[] {
   const mainImage = product.image?.trim() || ''
-  if (isLeggingsProduct(product.category)) {
+  if (isLeggingsCatalogProduct(product)) {
     const saved = normalizeLeggingsColorNames(product.colors, mainImage)
     if (saved.length >= LEGGINGS_COLOR_COUNT - 2) return saved
     return buildLeggingsProductColors(mainImage)
   }
   return normalizeProductColors(product.colors, mainImage)
+}
+
+export function productGalleryImages(product: {
+  image: string
+  galleryImages?: string[]
+}): string[] {
+  const gallery = (product.galleryImages || []).map((u) => u.trim()).filter(Boolean).slice(0, MAX_COLOR_IMAGES)
+  if (gallery.length > 0) return gallery
+  const main = product.image?.trim()
+  return main ? [main] : []
 }
 
 /** Keep colour names for leggings even when photos are only on the main product image. */

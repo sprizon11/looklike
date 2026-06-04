@@ -42,7 +42,10 @@ import { compressImageFile } from '@/lib/compress-image'
 import {
   buildLeggingsProductColors,
   emptyColorEntry,
+  isLeggingsAdminForm,
+  isLeggingsCatalogProduct,
   isLeggingsProduct,
+  MAX_COLOR_IMAGES,
   normalizeProductColors,
   orderPaymentProofSrc,
   padColorImageSlots,
@@ -78,6 +81,7 @@ export default function Admin() {
     description: '',
     weightKg: '0.5',
     image: '' as string,
+    galleryImages: ['', '', ''] as string[],
     colors: [] as ProductColor[],
   })
 
@@ -219,6 +223,7 @@ export default function Admin() {
       description: '',
       weightKg: '0.5',
       image: '',
+      galleryImages: ['', '', ''],
       colors: [emptyColorEntry()],
     })
     setProductModalOpen(true)
@@ -227,7 +232,8 @@ export default function Admin() {
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductError('')
-    const leggings = isLeggingsProduct(p.category)
+    const leggings = isLeggingsCatalogProduct(p)
+    const gallery = padColorImageSlots(p.galleryImages, p.image)
     const colors = leggings
       ? [emptyColorEntry()]
       : normalizeProductColors(p.colors, p.image).map((c) => ({
@@ -236,10 +242,11 @@ export default function Admin() {
         }))
     setProductForm({
       name: p.name,
-      category: p.category,
+      category: leggings ? 'Leggings' : p.category,
       price: String(p.price),
       stock: String(p.stock),
       image: p.image,
+      galleryImages: gallery,
       size: p.size || '',
       description: p.description || '',
       weightKg: String(p.weightKg ?? 0.5),
@@ -325,13 +332,15 @@ export default function Admin() {
     const size = productForm.size.trim()
     const description = productForm.description.trim()
     const weightKg = Number(productForm.weightKg)
-    const isLeggings = isLeggingsProduct(category)
-    const mainImage = productForm.image.trim()
+    const isLeggings = isLeggingsAdminForm(category, productForm.colors)
+    const gallery = productForm.galleryImages.map((u) => u.trim()).filter(Boolean).slice(0, MAX_COLOR_IMAGES)
+    const mainImage = (gallery[0] || productForm.image).trim()
+    const saveCategory = isLeggings ? 'Leggings' : category
 
     let colors: ProductColor[]
     if (isLeggings) {
       if (!mainImage) {
-        setProductError('Upload one main leggings photo — all 48 colours use this image on the website.')
+        setProductError('Upload at least one main leggings photo (Photo 1). All 48 colour circles use this image.')
         return
       }
       colors = buildLeggingsProductColors(mainImage)
@@ -369,17 +378,29 @@ export default function Admin() {
       if (editingProduct) {
         await updateProduct(editingProduct.id, {
           name,
-          category,
+          category: saveCategory,
           price,
           stock,
           image,
+          galleryImages: gallery.length > 0 ? gallery : undefined,
           size,
           description,
           weightKg,
           colors,
         })
       } else {
-        await addProduct({ name, category, price, stock, image, size, description, weightKg, colors })
+        await addProduct({
+          name,
+          category: saveCategory,
+          price,
+          stock,
+          image,
+          galleryImages: gallery.length > 0 ? gallery : undefined,
+          size,
+          description,
+          weightKg,
+          colors,
+        })
       }
       closeProductModal()
     } catch (e) {
@@ -1155,12 +1176,24 @@ export default function Admin() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Category</label>
-                  <input
+                  <select
                     value={productForm.category}
-                    onChange={(e) => setProductForm((s) => ({ ...s, category: e.target.value }))}
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="Kurti / Leggings / Palazzo"
-                  />
+                    onChange={(e) => {
+                      const cat = e.target.value
+                      setProductForm((s) => ({
+                        ...s,
+                        category: cat,
+                        colors: isLeggingsProduct(cat) ? [emptyColorEntry()] : s.colors,
+                      }))
+                      setProductError('')
+                    }}
+                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] bg-white focus:outline-none focus:border-black/30"
+                  >
+                    <option value="Kurti">Kurti</option>
+                    <option value="Leggings">Leggings</option>
+                    <option value="Palazzo">Palazzo</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Price (Rs.)</label>
@@ -1218,51 +1251,96 @@ export default function Admin() {
                 />
               </div>
 
-              <div>
-                <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
-                  {isLeggingsProduct(productForm.category)
-                    ? 'Main leggings photo (one image for all 48 colours)'
-                    : 'Main product photo'}
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="w-full mt-1 font-body text-[12px]"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    try {
-                      setProductError('')
-                      const dataUrl = await compressImageFile(file)
-                      setProductForm((s) => ({ ...s, image: dataUrl }))
-                    } catch {
-                      setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
-                    }
-                    e.target.value = ''
-                  }}
-                />
-                {productForm.image ? (
-                  <img
-                    src={productForm.image}
-                    alt="Product"
-                    className="mt-2 w-24 h-28 object-cover border border-black/[0.06]"
-                  />
-                ) : (
-                  <p className="font-body text-[11px] text-black/35 mt-1">
-                    {isLeggingsProduct(productForm.category)
-                      ? 'Customers see this photo + all 48 colour names to pick from.'
-                      : 'Used as shop thumbnail if you do not upload per-colour photos.'}
+              {isLeggingsAdminForm(productForm.category, productForm.colors) ? (
+                <div>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                    Main leggings photos (1–3) — same for all 48 colours
+                  </label>
+                  <p className="font-body text-[11px] text-black/35 mt-1 mb-2">
+                    Do not upload 48 separate colour photos. Customers see these photos + colour circles below.
                   </p>
-                )}
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {productForm.galleryImages.map((url, slotIdx) => (
+                      <div key={slotIdx} className="space-y-1">
+                        <p className="font-body text-[10px] uppercase text-black/40">
+                          Photo {slotIdx + 1}
+                          {slotIdx === 0 ? ' (required)' : ' (optional)'}
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="w-full font-body text-[11px]"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            try {
+                              setProductError('')
+                              const dataUrl = await compressImageFile(file)
+                              setProductForm((s) => {
+                                const gallery = [...s.galleryImages]
+                                gallery[slotIdx] = dataUrl
+                                const filled = gallery.filter(Boolean)
+                                return {
+                                  ...s,
+                                  galleryImages: gallery,
+                                  image: filled[0] || dataUrl,
+                                }
+                              })
+                            } catch {
+                              setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
+                            }
+                            e.target.value = ''
+                          }}
+                        />
+                        {url ? (
+                          <img
+                            src={url}
+                            alt={`Leggings ${slotIdx + 1}`}
+                            className="w-full h-20 object-cover border border-black/[0.06]"
+                          />
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                    Main product photo
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="w-full mt-1 font-body text-[12px]"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      try {
+                        setProductError('')
+                        const dataUrl = await compressImageFile(file)
+                        setProductForm((s) => ({ ...s, image: dataUrl, galleryImages: [dataUrl, '', ''] }))
+                      } catch {
+                        setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
+                      }
+                      e.target.value = ''
+                    }}
+                  />
+                  {productForm.image ? (
+                    <img
+                      src={productForm.image}
+                      alt="Product"
+                      className="mt-2 w-24 h-28 object-cover border border-black/[0.06]"
+                    />
+                  ) : null}
+                </div>
+              )}
 
-              {isLeggingsProduct(productForm.category) ? (
+              {isLeggingsAdminForm(productForm.category, productForm.colors) ? (
                 <div className="p-3 border border-gold/30 bg-[#faf8f2]">
-                  <p className="font-body text-[13px] font-medium text-black">Leggings colour chart</p>
+                  <p className="font-body text-[13px] font-medium text-black">48 colour circles on website</p>
                   <p className="font-body text-[12px] text-black/60 mt-1 leading-relaxed">
-                    All <strong>48 colours</strong> (CL 1–CL 48) are added automatically when you save. You only
-                    upload <strong>one photo</strong> above. On the website, customers scroll the colour row,
-                    pick a colour, and if they order 2+ pieces they choose a colour for each legging.
+                    When you save, all <strong>CL 1 – CL 48</strong> colours are added automatically. Customers
+                    pick from scrollable <strong>circles with names</strong> — no photo needed per colour.
                   </p>
                 </div>
               ) : (

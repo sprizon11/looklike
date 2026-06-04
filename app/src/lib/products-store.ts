@@ -9,6 +9,8 @@ export type Product = {
   price: number
   stock: number
   image: string
+  /** Main product photos (1–3), e.g. leggings — same image for all colour swatches */
+  galleryImages?: string[]
   size?: string
   description?: string
   /** Weight per piece in kg (for delivery charge) */

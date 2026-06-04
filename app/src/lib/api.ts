@@ -43,6 +43,7 @@ export async function apiAddProduct(input: {
   price: number
   stock: number
   image: string
+  galleryImages?: string[]
   size?: string
   description?: string
   weightKg?: number
@@ -61,6 +62,7 @@ export async function apiUpdateProduct(
     price: number
     stock: number
     image: string
+    galleryImages: string[]
     size: string
     description: string
     weightKg: number

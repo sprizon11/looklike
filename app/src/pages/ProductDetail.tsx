@@ -7,8 +7,9 @@ import { buildWhatsAppUrl } from '@/lib/shop-contact'
 import {
   colorImages,
   getCustomerColorOptions,
-  isLeggingsProduct,
+  isLeggingsCatalogProduct,
   primaryColorImage,
+  productGalleryImages,
   type ProductColor,
 } from '@/lib/product-colors'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
@@ -24,7 +25,7 @@ export default function ProductDetail() {
 
   const product = useMemo(() => products.find((p) => p.id === id), [products, id])
 
-  const isLeggings = product ? isLeggingsProduct(product.category) : false
+  const isLeggings = product ? isLeggingsCatalogProduct(product) : false
 
   const colors = useMemo(
     () => (product ? getCustomerColorOptions(product) : []),
@@ -70,8 +71,8 @@ export default function ProductDetail() {
 
   const galleryImages = useMemo(() => {
     if (!product) return []
-    if (isLeggings) return product.image ? [product.image] : []
-    return selectedColor ? colorImages(selectedColor) : product.image ? [product.image] : []
+    if (isLeggings) return productGalleryImages(product)
+    return selectedColor ? colorImages(selectedColor) : productGalleryImages(product)
   }, [isLeggings, selectedColor, product])
 
   const activeImage = galleryImages[0] || product?.image || ''

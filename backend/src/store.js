@@ -52,6 +52,7 @@ export const ProductSchema = z.object({
   price: z.number().nonnegative(),
   stock: z.number().int().nonnegative(),
   image: z.string().min(1),
+  galleryImages: z.array(z.string().min(1)).max(3).optional(),
   size: z.string().optional(),
   description: z.string().optional(),
   weightKg: z.number().positive().optional(),
