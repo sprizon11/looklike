@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import CheckoutModal from '@/components/CheckoutModal'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
+import { getCartItemMaxQuantity } from '@/lib/cart-limits'
 import { resolveCartItemImage } from '@/lib/cart-image'
 import { clearCart, readCart, removeCartItem, subscribeCart, updateCartItem } from '@/lib/cart-store'
 import { useProducts } from '@/hooks/use-products'
@@ -36,6 +37,24 @@ export default function Cart() {
     setItems(readCart())
     return subscribeCart(() => setItems(readCart()))
   }, [])
+
+  useEffect(() => {
+    if (products.length === 0) return
+    const current = readCart()
+    let changed = false
+    for (const i of current) {
+      const product = products.find((p) => p.id === i.productId)
+      const max = getCartItemMaxQuantity(product, i.size, i.color)
+      if (max > 0 && i.quantity > max) {
+        updateCartItem(
+          { productId: i.productId, size: i.size, color: i.color },
+          { quantity: max }
+        )
+        changed = true
+      }
+    }
+    if (changed) setItems(readCart())
+  }, [products])
 
   const totals = useMemo(() => calcCartTotals(items, deliveryState), [items, deliveryState])
 
@@ -90,7 +109,10 @@ export default function Cart() {
         ) : (
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
             <div className="space-y-4">
-              {displayItems.map((i) => (
+              {displayItems.map((i) => {
+                const product = products.find((p) => p.id === i.productId)
+                const maxQty = getCartItemMaxQuantity(product, i.size, i.color)
+                return (
                 <div key={`${i.productId}-${i.size}-${i.color}`} className="border border-black/[0.06] p-4 sm:p-5">
                   <div className="flex gap-4">
                     <div className="w-[86px] h-[110px] bg-[#f7f7f7] overflow-hidden shrink-0">
@@ -137,22 +159,29 @@ export default function Cart() {
                             onClick={() =>
                               updateCartItem(
                                 { productId: i.productId, size: i.size, color: i.color },
-                                { quantity: i.quantity + 1 }
+                                {
+                                  quantity:
+                                    maxQty > 0 ? Math.min(maxQty, i.quantity + 1) : i.quantity + 1,
+                                }
                               )
                             }
-                            className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors"
+                            disabled={maxQty > 0 && i.quantity >= maxQty}
+                            className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
                             aria-label="Increase quantity"
                           >
                             +
                           </button>
                         </div>
+                        {maxQty > 0 && i.quantity >= maxQty ? (
+                          <p className="font-body text-[11px] text-red-600 mt-1">Max {maxQty} for this size</p>
+                        ) : null}
 
                         <p className="font-body text-[14px] font-medium text-black">Rs. {i.price * i.quantity}</p>
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             <div className="border border-black/[0.06] p-6 h-fit">
@@ -174,7 +203,7 @@ export default function Cart() {
                   ))}
                 </select>
                 <p className="font-body text-[11px] text-black/35 mt-1">
-                  Tamil Nadu Rs. 60 flat · Other states Rs. 80/kg
+                  Tamil Nadu Rs. 60 up to 1 kg · then Rs. 80/kg · Other states Rs. 80/kg
                 </p>
               </div>
 

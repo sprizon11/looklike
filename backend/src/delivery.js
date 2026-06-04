@@ -6,12 +6,16 @@ export function isTamilNadu(state) {
   return n === 'tamil nadu' || n === 'tn'
 }
 
-/** Tamil Nadu: flat Rs. 60. All other states: Rs. 80 per kg (rounded up). */
+const RATE_PER_KG = 80
+const TN_FLAT_MAX_KG = 1
+const TN_FLAT_RS = 60
+
+/** Tamil Nadu: Rs. 60 flat up to 1 kg billed; above that Rs. 80/kg. Other states: Rs. 80/kg. */
 export function deliveryChargeForState(totalWeightKg, state) {
   const billedKg = Math.ceil(Math.max(0, totalWeightKg))
   if (billedKg <= 0) return 0
-  if (isTamilNadu(state)) return 60
-  return 80 * billedKg
+  if (isTamilNadu(state) && billedKg <= TN_FLAT_MAX_KG) return TN_FLAT_RS
+  return RATE_PER_KG * billedKg
 }
 
 export function calcSubtotal(items) {

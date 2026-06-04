@@ -112,7 +112,17 @@ export default function ProductDetail() {
     [colors, selectedColorId]
   )
 
-  const maxQtyForColor = maxQtyForSize
+  const maxQtyForColor = useMemo(() => {
+    let cap = maxQtyForSize
+    if (
+      selectedColor?.stock !== undefined &&
+      selectedColor.stock > 0 &&
+      !isLeggings
+    ) {
+      cap = Math.min(cap, selectedColor.stock)
+    }
+    return cap
+  }, [maxQtyForSize, selectedColor?.stock, isLeggings])
 
   useEffect(() => {
     const cap = maxQtyForColor
@@ -212,6 +222,14 @@ export default function ProductDetail() {
     }
     if (!isSizeAvailable(row, trackSizeQty)) {
       setPickError(`Size ${row.size} is out of stock.`)
+      return false
+    }
+    if (trackSizeQty && quantity > row.qty) {
+      setPickError(`Only ${row.qty} available in size ${row.size}.`)
+      return false
+    }
+    if (!isLeggings && selectedColor?.stock !== undefined && quantity > selectedColor.stock) {
+      setPickError(`Only ${selectedColor.stock} available in ${selectedColor.name}.`)
       return false
     }
     return true
@@ -431,6 +449,9 @@ export default function ProductDetail() {
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Quantity
+                {maxQtyForColor > 0 ? (
+                  <span className="text-black/40 normal-case"> (max {maxQtyForColor})</span>
+                ) : null}
               </p>
               <div className="flex items-center mt-3 border border-black/15 w-fit">
                 <button

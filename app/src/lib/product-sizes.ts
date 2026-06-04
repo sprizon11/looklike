@@ -6,9 +6,6 @@ export type SizeStock = {
 
 export const DEFAULT_SIZE_LABELS = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
-/** Customer cart / checkout — no cap from admin size qty (OOS sizes still blocked). */
-export const CUSTOMER_MAX_ORDER_QTY = 999
-
 export function defaultSizeStockRows(): SizeStock[] {
   return DEFAULT_SIZE_LABELS.map((size) => ({ size, qty: 0, outOfStock: false }))
 }
@@ -68,11 +65,11 @@ export function sizeStockHint(row: SizeStock, trackQty: boolean): string {
 export function maxQuantityForSize(
   row: SizeStock | undefined,
   trackQty: boolean,
-  _fallbackStock = 99
+  fallbackStock = 99
 ): number {
-  void _fallbackStock
   if (!row || !isSizeAvailable(row, trackQty)) return 0
-  return CUSTOMER_MAX_ORDER_QTY
+  if (trackQty) return row.qty
+  return Math.max(1, fallbackStock)
 }
 
 export function normalizeSizeStockForSave(rows: SizeStock[]): SizeStock[] {

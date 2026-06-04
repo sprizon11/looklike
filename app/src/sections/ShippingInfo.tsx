@@ -54,8 +54,9 @@ export default function ShippingInfo() {
                   <strong className="font-medium text-black">2–5 working days</strong>.
                 </p>
                 <p>
-                  <strong className="font-medium text-black">Delivery charges:</strong> Tamil Nadu — Rs. 60 flat;
-                  other states — Rs. 80 per kg (rounded up). Select your state at checkout to see the exact amount.
+                  <strong className="font-medium text-black">Delivery charges:</strong> Tamil Nadu — Rs. 60 flat for
+                  orders up to 1 kg; above 1 kg, Rs. 80 per kg (rounded up). Other states — Rs. 80 per kg (rounded up).
+                  Select your state at checkout to see the exact amount.
                 </p>
                 <p>
                   Read the <strong className="font-medium text-black">size chart / size guide</strong> carefully before

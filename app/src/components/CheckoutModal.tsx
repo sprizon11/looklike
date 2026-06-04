@@ -383,7 +383,7 @@ export default function CheckoutModal({ open, onClose, items, initialState, onSu
               <section>
                 <h3 className="font-display text-[22px] text-black">Delivery</h3>
                 <p className="font-body text-[12px] text-black/45 mt-1">
-                  We deliver all over India. Tamil Nadu Rs. 60 · Other states Rs. 80 per kg.
+                  We deliver all over India. Tamil Nadu Rs. 60 up to 1 kg, then Rs. 80/kg · Other states Rs. 80/kg.
                 </p>
                 <div className="mt-4 space-y-3">
                   <textarea
