@@ -61,7 +61,6 @@ export function buildAdminCategoryOptions(productCategories: string[]): string[]
   for (const c of BUILTIN_CATEGORIES) add(c)
   for (const c of getSavedCustomCategories()) add(c)
   for (const c of productCategories) add(c)
-  add(ADMIN_CATEGORY_ADD_NEW)
 
   return out
 }

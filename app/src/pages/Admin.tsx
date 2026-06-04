@@ -56,13 +56,9 @@ import {
 } from '@/lib/product-colors'
 import { printAdminOrder } from '@/lib/print-order'
 import {
-  ADMIN_CATEGORY_ADD_NEW,
   buildAdminCategoryOptions,
-  categoryOptionLabel,
-  isAddNewCategorySelection,
   normalizeNewCategoryName,
   rememberCustomCategory,
-  resolveProductCategory,
 } from '@/lib/admin-categories'
 import { extractOutOfStockColorNames } from '@/lib/color-stock'
 import {
@@ -115,7 +111,6 @@ export default function Admin() {
   })
 
   const [customCategoryTick, setCustomCategoryTick] = useState(0)
-  const [newCategoryDraft, setNewCategoryDraft] = useState('')
 
   const adminCategoryOptions = useMemo(() => {
     void customCategoryTick
@@ -268,7 +263,6 @@ export default function Admin() {
       kurtiDetails: emptyKurtiDetails(),
       outOfStockColors: [],
     })
-    setNewCategoryDraft('')
     setProductModalOpen(true)
   }
 
@@ -300,7 +294,6 @@ export default function Admin() {
       kurtiDetails: normalizeKurtiDetails(p.kurtiDetails),
       outOfStockColors: extractOutOfStockColorNames(p),
     })
-    setNewCategoryDraft('')
     setProductModalOpen(true)
   }
 
@@ -308,7 +301,6 @@ export default function Admin() {
     setProductModalOpen(false)
     setEditingProduct(null)
     setProductError('')
-    setNewCategoryDraft('')
   }
 
   const openAddFeatured = () => {
@@ -374,10 +366,12 @@ export default function Admin() {
     closeFeaturedModal()
   }
 
-  const addNewCategoryToList = () => {
-    const name = normalizeNewCategoryName(newCategoryDraft)
+  const promptNewCategory = () => {
+    const raw = window.prompt('New category name:', '')
+    if (raw === null) return
+    const name = normalizeNewCategoryName(raw)
     if (!name) {
-      setProductError('Enter a category name (e.g. Dupatta, Saree)')
+      setProductError('Enter a valid category name (e.g. Dupatta, Saree)')
       return
     }
     rememberCustomCategory(name)
@@ -389,7 +383,6 @@ export default function Admin() {
       colors: isLeggingsProduct(name) ? [emptyColorEntry()] : s.colors,
       kurtiDetails: isKurtiCategory(name) ? emptyKurtiDetails() : s.kurtiDetails,
     }))
-    setNewCategoryDraft('')
     setProductError('')
   }
 
@@ -424,8 +417,8 @@ export default function Admin() {
 
   const submitProduct = async () => {
     const name = productForm.name.trim()
-    const category = productForm.category.trim() || ADMIN_CATEGORY_ADD_NEW
-    const resolvedCategory = resolveProductCategory(category, productForm.otherCategoryName)
+    const category = productForm.category.trim()
+    const resolvedCategory = category
     const price = Number(productForm.price)
     const stock = Number(productForm.stock)
     const sizeStock = normalizeSizeStockForSave(productForm.sizeStock)
@@ -435,15 +428,11 @@ export default function Admin() {
     const isLeggings = isLeggingsAdminForm(category, productForm.colors)
     const gallery = productForm.galleryImages.map((u) => u.trim()).filter(Boolean).slice(0, MAX_COLOR_IMAGES)
     const mainImage = (gallery[0] || productForm.image).trim()
-    const saveCategory = isLeggings ? 'Leggings' : resolvedCategory || ADMIN_CATEGORY_ADD_NEW
+    const saveCategory = isLeggings ? 'Leggings' : resolvedCategory
 
-    if (isAddNewCategorySelection(category)) {
-      if (!productForm.otherCategoryName.trim()) {
-        setProductError('Enter a name for the new category')
-        return
-      }
-      rememberCustomCategory(saveCategory)
-      setCustomCategoryTick((t) => t + 1)
+    if (!saveCategory) {
+      setProductError('Choose a category or tap + to add one')
+      return
     }
 
     const kurtiDetails = isKurtiCategory(saveCategory)
@@ -1322,7 +1311,20 @@ export default function Admin() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Category</label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                      Category
+                    </label>
+                    <button
+                      type="button"
+                      onClick={promptNewCategory}
+                      className="flex items-center justify-center w-8 h-8 border border-black/15 text-black/70 hover:bg-black hover:text-gold-light hover:border-black transition-colors"
+                      aria-label="Add new category"
+                      title="Add new category"
+                    >
+                      <Plus size={16} strokeWidth={2} />
+                    </button>
+                  </div>
                   <select
                     value={productForm.category}
                     onChange={(e) => {
@@ -1342,55 +1344,10 @@ export default function Admin() {
                   >
                     {adminCategoryOptions.map((opt) => (
                       <option key={opt} value={opt}>
-                        {categoryOptionLabel(opt)}
+                        {opt}
                       </option>
                     ))}
                   </select>
-                  <div className="mt-3 p-3 border border-gold/25 bg-[#faf8f2] space-y-2">
-                    <p className="font-body text-[11px] font-semibold uppercase tracking-[0.06em] text-gold-dark">
-                      Add new category
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        value={newCategoryDraft}
-                        onChange={(e) => setNewCategoryDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            addNewCategoryToList()
-                          }
-                        }}
-                        className="flex-1 h-[40px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                        placeholder="e.g. Dupatta, Saree, Nighty"
-                      />
-                      <button
-                        type="button"
-                        onClick={addNewCategoryToList}
-                        className="h-[40px] px-4 bg-black text-gold-light font-body text-[12px] font-medium uppercase tracking-[0.04em] hover:bg-black/90 shrink-0"
-                      >
-                        Add category
-                      </button>
-                    </div>
-                    <p className="font-body text-[11px] text-black/45 leading-relaxed">
-                      Type a name and tap <strong>Add category</strong>. It appears in the list above and is saved for
-                      your next products.
-                    </p>
-                  </div>
-                  {isAddNewCategorySelection(productForm.category) && (
-                    <>
-                      <input
-                        value={productForm.otherCategoryName}
-                        onChange={(e) =>
-                          setProductForm((s) => ({ ...s, otherCategoryName: e.target.value }))
-                        }
-                        className="w-full mt-2 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                        placeholder="Or type new category here before save"
-                      />
-                      <p className="font-body text-[11px] text-black/40 mt-1">
-                        You selected “Add new category” — enter the name here, or use the box above first.
-                      </p>
-                    </>
-                  )}
                 </div>
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Price (Rs.)</label>
