@@ -49,6 +49,22 @@ export async function apiListOrders(): Promise<AdminOrder[]> {
   return json.orders
 }
 
+export async function apiDeleteOrder(id: string): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/orders/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) {
+    let message = 'Failed to delete order'
+    try {
+      const json = (await res.json()) as { error?: string }
+      if (json.error) message = json.error
+    } catch {
+      // ignore
+    }
+    throw new Error(message)
+  }
+}
+
 export function formatOrderDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-IN', {
     year: 'numeric',

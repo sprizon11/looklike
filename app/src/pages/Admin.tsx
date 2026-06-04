@@ -21,6 +21,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Printer,
 } from 'lucide-react'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
@@ -28,6 +29,7 @@ import { useFeatured } from '@/hooks/use-featured'
 import type { Product } from '@/lib/products-store'
 import type { FeaturedItem } from '@/lib/featured-store'
 import {
+  apiDeleteOrder,
   apiListOrders,
   formatOrderDate,
   formatOrderTime,
@@ -43,6 +45,7 @@ import {
   orderPaymentProofSrc,
   type ProductColor,
 } from '@/lib/product-colors'
+import { printAdminOrder } from '@/lib/print-order'
 
 const ADMIN_PASSWORD = 'admin123'
 
@@ -88,6 +91,7 @@ export default function Admin() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null)
+  const [orderDeletingId, setOrderDeletingId] = useState<string | null>(null)
 
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true)
@@ -100,6 +104,24 @@ export default function Admin() {
       setOrdersLoading(false)
     }
   }, [])
+
+  const handleDeleteOrder = async (order: AdminOrder) => {
+    const ok = window.confirm(
+      `Delete order for ${order.customer.name}?\n\nRs. ${order.amount} · ${formatOrderDateTime(order.createdAt)}\n\nThis removes the order from the database permanently.`
+    )
+    if (!ok) return
+
+    setOrderDeletingId(order.id)
+    try {
+      await apiDeleteOrder(order.id)
+      setOrders((prev) => prev.filter((o) => o.id !== order.id))
+      if (selectedOrder?.id === order.id) setSelectedOrder(null)
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Could not delete order')
+    } finally {
+      setOrderDeletingId(null)
+    }
+  }
 
   useEffect(() => {
     if (!authenticated) return
@@ -751,7 +773,7 @@ export default function Admin() {
                   <table className="w-full min-w-[900px]">
                     <thead>
                       <tr className="border-b border-black/[0.06]">
-                        {['Order ID', 'Items', 'Customer', 'Phone', 'Payment', 'Amount', 'Date & time'].map((h) => (
+                        {['Order ID', 'Items', 'Customer', 'Phone', 'Payment', 'Amount', 'Date & time', 'Actions'].map((h) => (
                           <th
                             key={h}
                             className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium"
@@ -764,7 +786,7 @@ export default function Admin() {
                     <tbody>
                       {filteredOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-6 py-8 font-body text-[13px] text-black/40 text-center">
+                          <td colSpan={8} className="px-6 py-8 font-body text-[13px] text-black/40 text-center">
                             No orders found.
                           </td>
                         </tr>
@@ -814,6 +836,35 @@ export default function Admin() {
                               <p>{formatOrderDate(order.createdAt)}</p>
                               <p className="text-[12px] text-black/35 mt-0.5">{formatOrderTime(order.createdAt)}</p>
                             </td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  title="Print order"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    printAdminOrder(order)
+                                  }}
+                                  className="p-2 hover:bg-black/[0.04] transition-colors"
+                                  aria-label="Print order"
+                                >
+                                  <Printer size={16} className="text-black/45" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Delete order"
+                                  disabled={orderDeletingId === order.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteOrder(order)
+                                  }}
+                                  className="p-2 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                  aria-label="Delete order"
+                                >
+                                  <Trash2 size={16} className="text-red-600/80" />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))
                       )}
@@ -823,14 +874,33 @@ export default function Admin() {
 
                 {selectedOrder && (
                   <div className="bg-white border border-black/[0.08] p-6">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
                       <h3 className="font-body text-[16px] font-medium text-black">Order details</h3>
-                      <button
-                        onClick={() => setSelectedOrder(null)}
-                        className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50 hover:text-black"
-                      >
-                        Close
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => printAdminOrder(selectedOrder)}
+                          className="inline-flex items-center gap-1.5 h-[36px] px-3 border border-black/10 font-body text-[12px] uppercase tracking-[0.06em] text-black/70 hover:border-black/30 transition-colors"
+                        >
+                          <Printer size={14} />
+                          Print
+                        </button>
+                        <button
+                          type="button"
+                          disabled={orderDeletingId === selectedOrder.id}
+                          onClick={() => handleDeleteOrder(selectedOrder)}
+                          className="inline-flex items-center gap-1.5 h-[36px] px-3 border border-red-200 font-body text-[12px] uppercase tracking-[0.06em] text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 size={14} />
+                          {orderDeletingId === selectedOrder.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                        <button
+                          onClick={() => setSelectedOrder(null)}
+                          className="h-[36px] px-3 font-body text-[12px] uppercase tracking-[0.06em] text-black/50 hover:text-black"
+                        >
+                          Close
+                        </button>
+                      </div>
                     </div>
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 font-body text-[13px]">
                       <div className="space-y-2">

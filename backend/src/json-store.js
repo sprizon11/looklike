@@ -105,6 +105,23 @@ export function createJsonStore({ dataDir, productsFile, ordersFile, ProductSche
       await writeJsonAtomic(ordersFile, allParsed.data)
     },
 
+    async deleteOrder(id) {
+      const list = await this.listOrders()
+      const order = list.find((o) => o.id === id)
+      if (!order) throw new Error('Order not found')
+      const next = list.filter((o) => o.id !== id)
+      const allParsed = z.array(OrderSchema).safeParse(next)
+      if (!allParsed.success) throw new Error('Invalid order data')
+      await writeJsonAtomic(ordersFile, allParsed.data)
+      if (order.paymentProofFile) {
+        try {
+          await fs.unlink(paymentProofPath(dataDir, order.paymentProofFile))
+        } catch {
+          // proof file may already be missing
+        }
+      }
+    },
+
     async savePaymentProof(orderId, dataUrl) {
       await ensureDataDir()
       await fs.mkdir(proofsDir(dataDir), { recursive: true })

@@ -126,6 +126,26 @@ export function createSupabaseStore({ ProductSchema, OrderSchema }) {
       if (error) throw new Error(error.message)
     },
 
+    async deleteOrder(id) {
+      assertClient()
+      const { data: row, error: fetchErr } = await supabase
+        .from('orders')
+        .select('payload')
+        .eq('id', id)
+        .maybeSingle()
+      if (fetchErr) throw new Error(fetchErr.message)
+      if (!row) throw new Error('Order not found')
+
+      const order = parseOrderRow(row)
+      const { error } = await supabase.from('orders').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+
+      const proofFile = order?.paymentProofFile
+      if (proofFile) {
+        await supabase.storage.from(PROOFS_BUCKET).remove([proofFile])
+      }
+    },
+
     async savePaymentProof(orderId, dataUrl) {
       assertClient()
       const match = /^data:image\/(\w+);base64,(.+)$/.exec(dataUrl)

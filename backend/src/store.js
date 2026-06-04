@@ -134,6 +134,10 @@ export async function replaceOrder(order) {
   return getStore().replaceOrder(order)
 }
 
+export async function deleteOrder(id) {
+  return getStore().deleteOrder(id)
+}
+
 export async function savePaymentProof(orderId, dataUrl) {
   return getStore().savePaymentProof(orderId, dataUrl)
 }

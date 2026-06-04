@@ -8,6 +8,7 @@ import Razorpay from 'razorpay'
 import { z } from 'zod'
 import { calcOrderTotals } from './delivery.js'
 import {
+  deleteOrder,
   deleteProduct,
   getStoreLabel,
   insertOrder,
@@ -563,6 +564,20 @@ app.get('/api/orders', async (_req, res) => {
   const orders = await listOrders()
   const visible = orders.filter((o) => o.status === 'paid' || o.status === 'cod' || o.status === 'upi')
   res.json({ orders: visible })
+})
+
+app.delete('/api/orders/:id', async (req, res) => {
+  try {
+    await deleteOrder(req.params.id)
+    res.json({ ok: true })
+  } catch (err) {
+    if (err instanceof Error && err.message === 'Order not found') {
+      res.status(404).json({ error: 'Not found' })
+      return
+    }
+    console.error('Delete order failed:', err)
+    res.status(500).json({ error: 'Could not delete order' })
+  }
 })
 
 app.get('/api/products', async (_req, res) => {
