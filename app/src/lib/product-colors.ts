@@ -32,18 +32,37 @@ export function shortLeggingsColorName(fullLabel: string) {
   return fullLabel.trim()
 }
 
-export function buildLeggingsProductColors(mainImage: string): ProductColor[] {
-  const img = mainImage.trim()
+/** Small payload for API / localStorage — no duplicate photos on each of 48 colours. */
+export function buildLeggingsProductColorsLean(): ProductColor[] {
   return LEGGINGS_COLOR_CATALOG.map((opt) => {
     const name = leggingsColorLabel(opt)
     return {
       id: `leggings-${opt.code.replace(/\s+/g, '-').toLowerCase()}`,
       name,
-      image: img,
-      images: img ? [img] : [],
       swatchHex: leggingsSwatchHex(name),
     }
   })
+}
+
+export function hydrateLeggingsColorList(
+  colors: ProductColor[],
+  mainImage: string,
+  gallery: string[]
+): ProductColor[] {
+  const img = mainImage.trim()
+  const slides = gallery.length > 0 ? gallery : img ? [img] : []
+  return colors.map((c) => ({
+    ...c,
+    name: c.name.trim(),
+    swatchHex: c.swatchHex || leggingsSwatchHex(c.name),
+    image: img,
+    images: slides,
+  }))
+}
+
+/** @deprecated Use buildLeggingsProductColorsLean + hydrateLeggingsColorList */
+export function buildLeggingsProductColors(mainImage: string): ProductColor[] {
+  return hydrateLeggingsColorList(buildLeggingsProductColorsLean(), mainImage, [mainImage])
 }
 
 export type ProductColor = {
@@ -90,9 +109,12 @@ export function getCustomerColorOptions(product: {
 }): ProductColor[] {
   const mainImage = product.image?.trim() || ''
   if (isLeggingsCatalogProduct(product)) {
-    const saved = normalizeLeggingsColorNames(product.colors, mainImage)
-    if (saved.length >= LEGGINGS_COLOR_COUNT - 2) return saved
-    return buildLeggingsProductColors(mainImage)
+    const gallery = productGalleryImages(product)
+    const lean =
+      normalizeLeggingsColorNamesLean(product.colors).length >= LEGGINGS_COLOR_COUNT - 2
+        ? normalizeLeggingsColorNamesLean(product.colors)
+        : buildLeggingsProductColorsLean()
+    return hydrateLeggingsColorList(lean, mainImage, gallery)
   }
   return normalizeProductColors(product.colors, mainImage)
 }
@@ -107,28 +129,36 @@ export function productGalleryImages(product: {
   return main ? [main] : []
 }
 
-/** Keep colour names for leggings even when photos are only on the main product image. */
-export function normalizeLeggingsColorNames(
-  colors: ProductColor[] | undefined,
-  mainImage: string
-): ProductColor[] {
-  const img = mainImage.trim()
+/** Strip duplicate images from stored leggings colours. */
+export function normalizeLeggingsColorNamesLean(colors: ProductColor[] | undefined): ProductColor[] {
   if (!Array.isArray(colors) || colors.length === 0) return []
   const out: ProductColor[] = []
   for (const c of colors) {
     if (!c.name?.trim()) continue
-    const images = colorImages(c)
-    const useImg = images[0] || img
     out.push({
-      ...c,
+      id: c.id,
       name: c.name.trim(),
-      image: useImg,
-      images: useImg ? [useImg] : [],
       swatchHex: c.swatchHex || leggingsSwatchHex(c.name),
       ...(c.swatch ? { swatch: c.swatch } : {}),
     })
   }
   return out
+}
+
+export function compactLeggingsProductForStorage<T extends {
+  category: string
+  name?: string
+  image: string
+  galleryImages?: string[]
+  colors?: ProductColor[]
+}>(product: T): T {
+  if (!isLeggingsCatalogProduct(product)) return product
+  const lean = normalizeLeggingsColorNamesLean(product.colors)
+  return {
+    ...product,
+    colors:
+      lean.length >= LEGGINGS_COLOR_COUNT - 2 ? lean : buildLeggingsProductColorsLean(),
+  } as T
 }
 
 export function normalizeProductColors(

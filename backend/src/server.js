@@ -62,9 +62,18 @@ const ProductColorSchema = z
     name: z.string().min(1),
     image: z.string().optional(),
     images: z.array(z.string().min(1)).max(3).optional(),
+    swatchHex: z.string().optional(),
     stock: z.number().int().nonnegative().optional(),
   })
   .transform((c) => normalizeColorRecord(c))
+
+function isLeggingsCategory(category) {
+  return (category || '').toLowerCase().includes('legging')
+}
+
+function isLeggingsColorName(name) {
+  return /^CL\s*\d/i.test((name || '').trim())
+}
 
 function normalizeColorRecord(c) {
   const images =
@@ -74,6 +83,14 @@ function normalizeColorRecord(c) {
         ? [c.image.trim()]
         : []
   if (images.length === 0) {
+    if (isLeggingsColorName(c.name)) {
+      return {
+        id: c.id,
+        name: c.name,
+        ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
+        ...(c.stock !== undefined ? { stock: c.stock } : {}),
+      }
+    }
     throw new Error('Each colour needs at least one image')
   }
   return {
@@ -81,6 +98,7 @@ function normalizeColorRecord(c) {
     name: c.name,
     images,
     image: images[0],
+    ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
     ...(c.stock !== undefined ? { stock: c.stock } : {}),
   }
 }
@@ -261,14 +279,19 @@ function normalizeProduct(raw) {
 }
 
 function prepareProductPayload(data, timestamps) {
-  const colors =
-    Array.isArray(data.colors) && data.colors.length > 0
-      ? data.colors.map((c) => normalizeColorRecord(c))
-      : [{ id: id('color'), name: 'Default', images: [data.image], image: data.image }]
+  const mainImage = data.image
+  let colors
+  if (Array.isArray(data.colors) && data.colors.length > 0) {
+    colors = data.colors.map((c) => normalizeColorRecord(c))
+  } else if (isLeggingsCategory(data.category)) {
+    colors = []
+  } else {
+    colors = [{ id: id('color'), name: 'Default', images: [mainImage], image: mainImage }]
+  }
   return {
     ...data,
     colors,
-    image: colors[0].image,
+    image: mainImage,
     weightKg: data.weightKg ?? 0.5,
     ...timestamps,
   }

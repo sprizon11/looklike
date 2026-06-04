@@ -40,7 +40,7 @@ import {
 } from '@/lib/orders-api'
 import { compressImageFile } from '@/lib/compress-image'
 import {
-  buildLeggingsProductColors,
+  buildLeggingsProductColorsLean,
   emptyColorEntry,
   isLeggingsAdminForm,
   isLeggingsCatalogProduct,
@@ -343,7 +343,7 @@ export default function Admin() {
         setProductError('Upload at least one main leggings photo (Photo 1). All 48 colour circles use this image.')
         return
       }
-      colors = buildLeggingsProductColors(mainImage)
+      colors = buildLeggingsProductColorsLean()
     } else {
       colors = productForm.colors
         .map((c) => serializeColorForSave(c))

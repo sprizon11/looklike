@@ -16,6 +16,10 @@ function resolveFromRoot(envPath, fallbackRelative) {
 
 const DATA_DIR = resolveFromRoot(process.env.DATA_DIR, 'backend/data')
 
+function isLeggingsColorName(name) {
+  return /^CL\s*\d/i.test(String(name || '').trim())
+}
+
 function normalizeColorRecord(c) {
   const images =
     Array.isArray(c.images) && c.images.length > 0
@@ -24,6 +28,14 @@ function normalizeColorRecord(c) {
         ? [String(c.image).trim()]
         : []
   if (images.length === 0) {
+    if (isLeggingsColorName(c.name)) {
+      return {
+        id: c.id,
+        name: c.name,
+        ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
+        ...(c.stock !== undefined ? { stock: c.stock } : {}),
+      }
+    }
     throw new Error('Each colour needs at least one image')
   }
   return {
@@ -31,6 +43,7 @@ function normalizeColorRecord(c) {
     name: c.name,
     images,
     image: images[0],
+    ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
     ...(c.stock !== undefined ? { stock: c.stock } : {}),
   }
 }
@@ -41,6 +54,7 @@ const ProductColorSchema = z
     name: z.string().min(1),
     image: z.string().optional(),
     images: z.array(z.string().min(1)).max(3).optional(),
+    swatchHex: z.string().optional(),
     stock: z.number().int().nonnegative().optional(),
   })
   .transform((c) => normalizeColorRecord(c))

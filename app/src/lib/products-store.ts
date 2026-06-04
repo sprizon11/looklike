@@ -1,4 +1,4 @@
-import type { ProductColor } from '@/lib/product-colors'
+import { compactLeggingsProductForStorage, type ProductColor } from '@/lib/product-colors'
 
 export type ProductCategory = 'Kurti' | 'Leggings' | 'Palazzo' | string
 
@@ -166,10 +166,24 @@ export function readProducts(): Product[] {
   return parsed
 }
 
+function compactForStorage(list: Product[]) {
+  return list.map((p) => compactLeggingsProductForStorage(p))
+}
+
 export function writeProducts(next: Product[]) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  window.dispatchEvent(new Event(CHANGE_EVENT))
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(compactForStorage(next)))
+    window.dispatchEvent(new Event(CHANGE_EVENT))
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e)
+    if (err.includes('quota') || err.includes('QuotaExceeded')) {
+      throw new Error(
+        'Browser storage is full. Product was not cached locally — if you use the live API, try again or clear site data for looklike.in.'
+      )
+    }
+    throw e
+  }
 }
 
 /** Sync local cache after loading from server API (all devices see same catalog). */
