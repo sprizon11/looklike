@@ -224,7 +224,10 @@ export default function ProductDetail() {
 
     if (!validateColors()) return
 
-    const cartImage = cartImageRef(activeImage) || cartImageRef(product.image)
+    const cartImage =
+      cartImageRef(activeImage) ||
+      cartImageRef(selectedColor ? primaryColorImage(selectedColor) : '') ||
+      cartImageRef(product.image)
 
     try {
       if (isLeggings) {
