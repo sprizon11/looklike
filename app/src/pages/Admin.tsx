@@ -28,6 +28,7 @@ import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
 import { useFeatured } from '@/hooks/use-featured'
 import type { Product } from '@/lib/products-store'
+import { findSideOpenKurtiToKeep, productsToRemoveExceptKeep } from '@/lib/product-prune'
 import type { FeaturedItem } from '@/lib/featured-store'
 import {
   apiDeleteOrder,
@@ -92,6 +93,7 @@ export default function Admin() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productError, setProductError] = useState('')
   const [productSaving, setProductSaving] = useState(false)
+  const [productPruning, setProductPruning] = useState(false)
   const [productForm, setProductForm] = useState({
     name: '',
     category: 'Kurti',
@@ -363,6 +365,35 @@ export default function Admin() {
       addFeatured({ name, price, fullSize, description, image })
     }
     closeFeaturedModal()
+  }
+
+  const pruneToSideOpenKurti = async () => {
+    const keep = findSideOpenKurtiToKeep(products)
+    if (!keep) {
+      window.alert('No "Side open kurti" product found. Add it first or rename your main product.')
+      return
+    }
+    const toRemove = productsToRemoveExceptKeep(products, keep)
+    if (toRemove.length === 0) {
+      window.alert(`Only "${keep.name}" is in the catalogue.`)
+      return
+    }
+    const names = toRemove.map((p) => `• ${p.name}`).join('\n')
+    const ok = window.confirm(
+      `Keep only:\n"${keep.name}"\n\nDelete ${toRemove.length} other product(s)?\n\n${names}`
+    )
+    if (!ok) return
+
+    setProductPruning(true)
+    try {
+      for (const p of toRemove) {
+        await deleteProduct(p.id)
+      }
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Could not delete some products.')
+    } finally {
+      setProductPruning(false)
+    }
   }
 
   const submitProduct = async () => {
@@ -736,15 +767,27 @@ export default function Admin() {
         {/* Products */}
         {activeTab === 'products' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <p className="font-body text-[14px] text-black/50">{filteredProducts.length} products</p>
-              <button
-                onClick={openAddProduct}
-                className="h-[40px] px-4 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.04em] hover:bg-black/90 transition-colors flex items-center gap-2"
-              >
-                <Plus size={16} />
-                Add Product
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {products.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => void pruneToSideOpenKurti()}
+                    disabled={productPruning}
+                    className="h-[40px] px-4 border border-red-200 text-red-700 font-body text-[12px] font-medium uppercase tracking-[0.04em] hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {productPruning ? 'Removing…' : 'Keep only Side open kurti'}
+                  </button>
+                )}
+                <button
+                  onClick={openAddProduct}
+                  className="h-[40px] px-4 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.04em] hover:bg-black/90 transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  Add Product
+                </button>
+              </div>
             </div>
 
             <div className="bg-white border border-black/[0.08] overflow-x-auto">
