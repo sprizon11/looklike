@@ -1,4 +1,6 @@
 import { compactLeggingsProductForStorage, type ProductColor } from '@/lib/product-colors'
+import type { KurtiDetails } from '@/lib/kurti-details'
+import type { SizeStock } from '@/lib/product-sizes'
 
 export type ProductCategory = 'Kurti' | 'Leggings' | 'Palazzo' | string
 
@@ -12,10 +14,14 @@ export type Product = {
   /** Main product photos (1–3), e.g. leggings — same image for all colour swatches */
   galleryImages?: string[]
   size?: string
+  /** Per-size quantity and out-of-stock flag */
+  sizeStock?: SizeStock[]
   description?: string
   /** Weight per piece in kg (for delivery charge) */
   weightKg?: number
   colors?: ProductColor[]
+  /** Fabric, lining, style, etc. — shown on Kurti product pages */
+  kurtiDetails?: KurtiDetails
   createdAt: number
   updatedAt: number
 }

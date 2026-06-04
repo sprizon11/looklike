@@ -1,5 +1,7 @@
 import type { Product } from '@/lib/products-store'
 import type { ProductColor } from '@/lib/product-colors'
+import type { KurtiDetails } from '@/lib/kurti-details'
+import type { SizeStock } from '@/lib/product-sizes'
 import { getApiBase, hasBackendApi } from '@/lib/api-base'
 
 export function hasApi() {
@@ -45,9 +47,11 @@ export async function apiAddProduct(input: {
   image: string
   galleryImages?: string[]
   size?: string
+  sizeStock?: SizeStock[]
   description?: string
   weightKg?: number
   colors?: ProductColor[]
+  kurtiDetails?: KurtiDetails
 }): Promise<Product> {
   const res = await apiFetch('/api/products', { method: 'POST', body: JSON.stringify(input) })
   const json = (await res.json()) as { product: Product }
@@ -64,9 +68,11 @@ export async function apiUpdateProduct(
     image: string
     galleryImages: string[]
     size: string
+    sizeStock: SizeStock[]
     description: string
     weightKg: number
     colors: ProductColor[]
+    kurtiDetails: KurtiDetails
   }>
 ): Promise<Product> {
   const res = await apiFetch(`/api/products/${encodeURIComponent(id)}`, {

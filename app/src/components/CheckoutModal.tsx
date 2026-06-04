@@ -5,7 +5,7 @@ import type { CartItem } from '@/lib/cart-store'
 import type { CheckoutCustomer, UpiOrderResponse } from '@/lib/payments-api'
 import { confirmUpiOrder, createUpiOrder, getPaymentConfig } from '@/lib/payments-api'
 import { clearCart } from '@/lib/cart-store'
-import { compressImageFile } from '@/lib/compress-image'
+import { compressImageFile, PAYMENT_PROOF_MAX_WIDTH, PAYMENT_PROOF_QUALITY } from '@/lib/compress-image'
 import { downloadQrPng } from '@/lib/download-qr'
 import { tryOwnerWhatsAppFallback } from '@/lib/shop-contact'
 import { calcCartTotals } from '@/lib/delivery'
@@ -287,7 +287,11 @@ export default function CheckoutModal({ open, onClose, items, initialState, onSu
                       if (!file) return
                       try {
                         setError('')
-                        const dataUrl = await compressImageFile(file, 480, 0.65)
+                        const dataUrl = await compressImageFile(
+                          file,
+                          PAYMENT_PROOF_MAX_WIDTH,
+                          PAYMENT_PROOF_QUALITY
+                        )
                         setPaymentProof(dataUrl)
                       } catch {
                         setError('Could not use that image. Try a clear screenshot (JPG/PNG).')

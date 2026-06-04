@@ -111,9 +111,28 @@ const ProductCreateSchema = z.object({
   image: z.string().min(1),
   galleryImages: z.array(z.string().min(1)).max(3).optional(),
   size: z.string().optional(),
+  sizeStock: z
+    .array(
+      z.object({
+        size: z.string().min(1),
+        qty: z.number().int().nonnegative(),
+        outOfStock: z.boolean().optional(),
+      })
+    )
+    .optional(),
   description: z.string().optional(),
   weightKg: z.number().positive().optional(),
   colors: z.array(ProductColorSchema).min(1).optional(),
+  kurtiDetails: z
+    .object({
+      fabric: z.string().optional(),
+      lining: z.string().optional(),
+      style: z.string().optional(),
+      color: z.string().optional(),
+      length: z.string().optional(),
+      pocket: z.string().optional(),
+    })
+    .optional(),
 })
 
 const ProductUpdateSchema = ProductCreateSchema.partial()

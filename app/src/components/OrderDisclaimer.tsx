@@ -37,8 +37,10 @@ export default function OrderDisclaimer({ className = '', compact = false }: Ord
               Read the size chart / size guide carefully before placing the order.
             </li>
             <li>
-              It will take <strong className="font-medium text-black">15–25 working days</strong> because
-              we stitch after receiving your order — we need time to prepare.
+              Once your order is <strong className="font-medium text-black">confirmed</strong>, we dispatch the
+              same day. Delivery to your door in <strong className="font-medium text-black">2–3 days</strong> via{' '}
+              <strong className="font-medium text-black">ST Courier</strong> or{' '}
+              <strong className="font-medium text-black">DTDC Courier</strong>.
             </li>
             <li>
               A few products are available for immediate dispatch.{' '}

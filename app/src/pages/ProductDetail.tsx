@@ -12,11 +12,19 @@ import {
   productGalleryImages,
   type ProductColor,
 } from '@/lib/product-colors'
+import {
+  getProductSizeStock,
+  hasExplicitSizeStock,
+  isSizeAvailable,
+  maxQuantityForSize,
+  sizeStockHint,
+  type SizeStock,
+} from '@/lib/product-sizes'
+import KurtiDetailsList from '@/components/KurtiDetailsList'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
+import { hasKurtiDetails, isKurtiCategory, normalizeKurtiDetails } from '@/lib/kurti-details'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
 import LeggingsColorStrip from '@/components/LeggingsColorStrip'
-
-const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -32,6 +40,13 @@ export default function ProductDetail() {
     [product]
   )
 
+  const trackSizeQty = product ? hasExplicitSizeStock(product) : false
+
+  const sizeRows = useMemo(
+    () => (product ? getProductSizeStock(product) : []),
+    [product]
+  )
+
   const [selectedColorId, setSelectedColorId] = useState('')
   const [pieceColors, setPieceColors] = useState<string[]>([''])
   const [selectedSize, setSelectedSize] = useState<string>('')
@@ -40,6 +55,19 @@ export default function ProductDetail() {
   const [pickError, setPickError] = useState('')
 
   const defaultColorName = colors[0]?.name || ''
+
+  const selectedSizeRow: SizeStock | undefined = useMemo(
+    () =>
+      sizeRows.find((r) => r.size === selectedSize) ??
+      sizeRows.find((r) => isSizeAvailable(r, trackSizeQty)),
+    [sizeRows, selectedSize, trackSizeQty]
+  )
+
+  const maxQtyForSize = maxQuantityForSize(
+    selectedSizeRow,
+    trackSizeQty,
+    product?.stock && product.stock > 0 ? product.stock : 99
+  )
 
   useEffect(() => {
     if (colors.length > 0) setSelectedColorId(colors[0].id)
@@ -55,19 +83,21 @@ export default function ProductDetail() {
     })
   }, [quantity, defaultColorName])
 
+  useEffect(() => {
+    if (sizeRows.length === 0) return
+    const firstAvailable = sizeRows.find((r) => isSizeAvailable(r, trackSizeQty))
+    const pick = firstAvailable?.size || sizeRows[0].size
+    setSelectedSize(pick)
+  }, [product?.id, sizeRows, trackSizeQty])
+
+  useEffect(() => {
+    if (maxQtyForSize > 0) setQuantity((q) => Math.min(Math.max(1, q), maxQtyForSize))
+  }, [selectedSize, maxQtyForSize])
+
   const selectedColor: ProductColor | undefined = useMemo(
     () => colors.find((c) => c.id === selectedColorId) ?? colors[0],
     [colors, selectedColorId]
   )
-
-  const sizes = useMemo(() => {
-    const raw = product?.size?.trim()
-    if (!raw) return DEFAULT_SIZES
-    return raw
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-  }, [product])
 
   const galleryImages = useMemo(() => {
     if (!product) return []
@@ -92,8 +122,41 @@ export default function ProductDetail() {
     )
   }
 
+  const pickSize = (row: SizeStock) => {
+    if (!isSizeAvailable(row, trackSizeQty)) {
+      setPickError(`Size ${row.size} is out of stock.`)
+      return
+    }
+    setSelectedSize(row.size)
+    setPickError('')
+    const cap = maxQuantityForSize(
+      row,
+      trackSizeQty,
+      product.stock && product.stock > 0 ? product.stock : 99
+    )
+    setQuantity((q) => Math.min(Math.max(1, q), cap))
+  }
+
+  const validateBeforeOrder = (): boolean => {
+    const row = sizeRows.find((r) => r.size === selectedSize)
+    if (!row) {
+      setPickError('Please select a size.')
+      return false
+    }
+    if (!isSizeAvailable(row, trackSizeQty)) {
+      setPickError(`Size ${row.size} is out of stock.`)
+      return false
+    }
+    if (trackSizeQty && quantity > row.qty) {
+      setPickError(`Only ${row.qty} available in size ${row.size}.`)
+      return false
+    }
+    return true
+  }
+
   const handleAddToCart = () => {
-    const size = selectedSize || sizes[0]
+    if (!validateBeforeOrder()) return
+    const size = selectedSize
     setPickError('')
 
     if (isLeggings) {
@@ -133,7 +196,8 @@ export default function ProductDetail() {
   }
 
   const handleWhatsAppOrder = () => {
-    const size = selectedSize || sizes[0]
+    if (!validateBeforeOrder()) return
+    const size = selectedSize
     setPickError('')
 
     if (isLeggings) {
@@ -188,6 +252,13 @@ export default function ProductDetail() {
               </p>
             )}
 
+            {isKurtiCategory(product.category) && hasKurtiDetails(product.kurtiDetails) && (
+              <KurtiDetailsList
+                details={normalizeKurtiDetails(product.kurtiDetails)}
+                className="mt-5"
+              />
+            )}
+
             {showDressColorPicker && (
               <div className="mt-8">
                 <p className="font-body text-[14px] text-black">
@@ -230,19 +301,37 @@ export default function ProductDetail() {
                 Select Size
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
-                {sizes.map((size) => {
-                  const active = (selectedSize || sizes[0]) === size
+                {sizeRows.map((row) => {
+                  const available = isSizeAvailable(row, trackSizeQty)
+                  const hint = sizeStockHint(row, trackSizeQty)
+                  const active = selectedSize === row.size
                   return (
                     <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`min-w-[48px] h-[42px] px-4 border font-body text-[13px] transition-colors ${
-                        active
-                          ? 'bg-black text-gold-light border-black'
-                          : 'bg-white text-black border-black/15 hover:border-gold'
+                      key={row.size}
+                      type="button"
+                      onClick={() => pickSize(row)}
+                      className={`min-w-[56px] px-3 py-2 border font-body text-[13px] transition-colors flex flex-col items-center ${
+                        !available
+                          ? 'bg-black/[0.04] text-black/35 border-black/10 cursor-not-allowed'
+                          : active
+                            ? 'bg-black text-gold-light border-black'
+                            : 'bg-white text-black border-black/15 hover:border-gold'
                       }`}
                     >
-                      {size}
+                      <span>{row.size}</span>
+                      {hint ? (
+                        <span
+                          className={`text-[10px] mt-0.5 ${
+                            !available
+                              ? 'text-red-600 font-medium'
+                              : active
+                                ? 'text-gold-light/90'
+                                : 'text-black/45'
+                          }`}
+                        >
+                          {hint}
+                        </span>
+                      ) : null}
                     </button>
                   )
                 })}
@@ -257,19 +346,26 @@ export default function ProductDetail() {
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Quantity
+                {maxQtyForSize > 0 ? (
+                  <span className="text-black/40 normal-case"> (max {maxQtyForSize} for size {selectedSize})</span>
+                ) : null}
               </p>
               <div className="flex items-center mt-3 border border-black/15 w-fit">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors"
+                  disabled={maxQtyForSize === 0}
+                  className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
                   aria-label="Decrease quantity"
                 >
                   −
                 </button>
                 <span className="w-12 text-center font-body text-[14px] text-black">{quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => q + 1)}
-                  className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors"
+                  onClick={() =>
+                    setQuantity((q) => (maxQtyForSize > 0 ? Math.min(maxQtyForSize, q + 1) : q + 1))
+                  }
+                  disabled={maxQtyForSize > 0 && quantity >= maxQtyForSize}
+                  className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
                   aria-label="Increase quantity"
                 >
                   +
@@ -324,7 +420,8 @@ export default function ProductDetail() {
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleAddToCart}
-                className="inline-flex items-center justify-center gap-2 h-[52px] px-8 bg-black text-gold-light font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent"
+                disabled={!selectedSizeRow || !isSizeAvailable(selectedSizeRow, trackSizeQty)}
+                className="inline-flex items-center justify-center gap-2 h-[52px] px-8 bg-black text-gold-light font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {added ? (
                   <>
@@ -340,7 +437,8 @@ export default function ProductDetail() {
               </button>
               <button
                 onClick={handleWhatsAppOrder}
-                className="inline-flex items-center justify-center h-[52px] px-8 border border-black text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] transition-colors hover:bg-black hover:text-gold-light"
+                disabled={!selectedSizeRow || !isSizeAvailable(selectedSizeRow, trackSizeQty)}
+                className="inline-flex items-center justify-center h-[52px] px-8 border border-black text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] transition-colors hover:bg-black hover:text-gold-light disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Order on WhatsApp
               </button>

@@ -38,7 +38,7 @@ import {
   orderStatusLabel,
   type AdminOrder,
 } from '@/lib/orders-api'
-import { compressImageFile } from '@/lib/compress-image'
+import { compressProductImage, PRODUCT_IMAGE_SIZE } from '@/lib/compress-image'
 import {
   buildLeggingsProductColorsLean,
   emptyColorEntry,
@@ -53,6 +53,24 @@ import {
   type ProductColor,
 } from '@/lib/product-colors'
 import { printAdminOrder } from '@/lib/print-order'
+import {
+  ADMIN_CATEGORY_OTHER,
+  buildAdminCategoryOptions,
+  rememberCustomCategory,
+  resolveProductCategory,
+} from '@/lib/admin-categories'
+import {
+  emptyKurtiDetails,
+  isKurtiCategory,
+  normalizeKurtiDetails,
+  validateKurtiDetails,
+} from '@/lib/kurti-details'
+import {
+  defaultSizeStockRows,
+  getProductSizeStock,
+  normalizeSizeStockForSave,
+  sizeStockToLegacyString,
+} from '@/lib/product-sizes'
 
 const ADMIN_PASSWORD = 'admin123'
 
@@ -78,12 +96,23 @@ export default function Admin() {
     price: '0',
     stock: '0',
     size: '',
+    sizeStock: defaultSizeStockRows(),
     description: '',
     weightKg: '0.5',
     image: '' as string,
     galleryImages: ['', '', ''] as string[],
     colors: [] as ProductColor[],
+    otherCategoryName: '',
+    kurtiDetails: emptyKurtiDetails(),
   })
+
+  const [customCategoryTick, setCustomCategoryTick] = useState(0)
+
+  const adminCategoryOptions = useMemo(() => {
+    void customCategoryTick
+    const fromProducts = products.map((p) => p.category).filter(Boolean)
+    return buildAdminCategoryOptions(fromProducts)
+  }, [products, customCategoryTick])
 
   const [featuredModalOpen, setFeaturedModalOpen] = useState(false)
   const [editingFeatured, setEditingFeatured] = useState<FeaturedItem | null>(null)
@@ -220,11 +249,14 @@ export default function Admin() {
       price: '0',
       stock: '0',
       size: '',
+      sizeStock: defaultSizeStockRows(),
       description: '',
       weightKg: '0.5',
       image: '',
       galleryImages: ['', '', ''],
       colors: [emptyColorEntry()],
+      otherCategoryName: '',
+      kurtiDetails: emptyKurtiDetails(),
     })
     setProductModalOpen(true)
   }
@@ -240,17 +272,21 @@ export default function Admin() {
           ...c,
           images: padColorImageSlots(c.images, c.image),
         }))
+    const cat = leggings ? 'Leggings' : p.category
     setProductForm({
       name: p.name,
-      category: leggings ? 'Leggings' : p.category,
+      category: cat,
       price: String(p.price),
       stock: String(p.stock),
       image: p.image,
       galleryImages: gallery,
       size: p.size || '',
+      sizeStock: getProductSizeStock(p),
       description: p.description || '',
       weightKg: String(p.weightKg ?? 0.5),
       colors,
+      otherCategoryName: '',
+      kurtiDetails: normalizeKurtiDetails(p.kurtiDetails),
     })
     setProductModalOpen(true)
   }
@@ -326,16 +362,39 @@ export default function Admin() {
 
   const submitProduct = async () => {
     const name = productForm.name.trim()
-    const category = productForm.category.trim() || 'Other'
+    const category = productForm.category.trim() || ADMIN_CATEGORY_OTHER
+    const resolvedCategory = resolveProductCategory(category, productForm.otherCategoryName)
     const price = Number(productForm.price)
     const stock = Number(productForm.stock)
-    const size = productForm.size.trim()
+    const sizeStock = normalizeSizeStockForSave(productForm.sizeStock)
+    const size = sizeStockToLegacyString(sizeStock)
     const description = productForm.description.trim()
     const weightKg = Number(productForm.weightKg)
     const isLeggings = isLeggingsAdminForm(category, productForm.colors)
     const gallery = productForm.galleryImages.map((u) => u.trim()).filter(Boolean).slice(0, MAX_COLOR_IMAGES)
     const mainImage = (gallery[0] || productForm.image).trim()
-    const saveCategory = isLeggings ? 'Leggings' : category
+    const saveCategory = isLeggings ? 'Leggings' : resolvedCategory || ADMIN_CATEGORY_OTHER
+
+    if (category === ADMIN_CATEGORY_OTHER) {
+      if (!productForm.otherCategoryName.trim()) {
+        setProductError('Enter a name for the new category')
+        return
+      }
+      rememberCustomCategory(saveCategory)
+      setCustomCategoryTick((t) => t + 1)
+    }
+
+    const kurtiDetails = isKurtiCategory(saveCategory)
+      ? normalizeKurtiDetails(productForm.kurtiDetails)
+      : undefined
+
+    if (kurtiDetails) {
+      const kurtiErr = validateKurtiDetails(kurtiDetails)
+      if (kurtiErr) {
+        setProductError(kurtiErr)
+        return
+      }
+    }
 
     let colors: ProductColor[]
     if (isLeggings) {
@@ -371,6 +430,10 @@ export default function Admin() {
       setProductError('Weight must be a valid number in kg (e.g. 0.5 or 1)')
       return
     }
+    if (sizeStock.length === 0) {
+      setProductError('Add at least one size with quantity or mark out of stock')
+      return
+    }
 
     setProductError('')
     setProductSaving(true)
@@ -384,9 +447,11 @@ export default function Admin() {
           image,
           galleryImages: gallery.length > 0 ? gallery : undefined,
           size,
+          sizeStock,
           description,
           weightKg,
           colors,
+          kurtiDetails,
         })
       } else {
         await addProduct({
@@ -397,9 +462,11 @@ export default function Admin() {
           image,
           galleryImages: gallery.length > 0 ? gallery : undefined,
           size,
+          sizeStock,
           description,
           weightKg,
           colors,
+          kurtiDetails,
         })
       }
       closeProductModal()
@@ -1184,16 +1251,36 @@ export default function Admin() {
                         ...s,
                         category: cat,
                         colors: isLeggingsProduct(cat) ? [emptyColorEntry()] : s.colors,
+                        kurtiDetails:
+                          isKurtiCategory(cat) && !isKurtiCategory(s.category)
+                            ? emptyKurtiDetails()
+                            : s.kurtiDetails,
                       }))
                       setProductError('')
                     }}
                     className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] bg-white focus:outline-none focus:border-black/30"
                   >
-                    <option value="Kurti">Kurti</option>
-                    <option value="Leggings">Leggings</option>
-                    <option value="Palazzo">Palazzo</option>
-                    <option value="Other">Other</option>
+                    {adminCategoryOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
                   </select>
+                  {productForm.category === ADMIN_CATEGORY_OTHER && (
+                    <input
+                      value={productForm.otherCategoryName}
+                      onChange={(e) =>
+                        setProductForm((s) => ({ ...s, otherCategoryName: e.target.value }))
+                      }
+                      className="w-full mt-2 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                      placeholder="New category name (e.g. Dupatta)"
+                    />
+                  )}
+                  {productForm.category === ADMIN_CATEGORY_OTHER && (
+                    <p className="font-body text-[11px] text-black/40 mt-1">
+                      This name is saved and appears in the category list next time.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Price (Rs.)</label>
@@ -1218,14 +1305,94 @@ export default function Admin() {
                     placeholder="24"
                   />
                 </div>
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Size</label>
-                  <input
-                    value={productForm.size}
-                    onChange={(e) => setProductForm((s) => ({ ...s, size: e.target.value }))}
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="S, M, L, XL"
-                  />
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                      Sizes — quantity per size
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductForm((s) => ({
+                          ...s,
+                          sizeStock: [...s.sizeStock, { size: '', qty: 0, outOfStock: false }],
+                        }))
+                      }
+                      className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
+                    >
+                      + Add size
+                    </button>
+                  </div>
+                  <p className="font-body text-[11px] text-black/35 mt-1 mb-2">
+                    Set how many pieces you have in each size. Tick out of stock when none left.
+                  </p>
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    {productForm.sizeStock.map((row, idx) => (
+                      <div
+                        key={`${row.size}-${idx}`}
+                        className="grid grid-cols-[1fr_88px_auto_auto] gap-2 items-center p-2 border border-black/10"
+                      >
+                        <input
+                          value={row.size}
+                          onChange={(e) =>
+                            setProductForm((s) => ({
+                              ...s,
+                              sizeStock: s.sizeStock.map((r, i) =>
+                                i === idx ? { ...r, size: e.target.value } : r
+                              ),
+                            }))
+                          }
+                          placeholder="e.g. S"
+                          className="h-[36px] px-2 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                        />
+                        <input
+                          inputMode="numeric"
+                          value={String(row.qty)}
+                          onChange={(e) =>
+                            setProductForm((s) => ({
+                              ...s,
+                              sizeStock: s.sizeStock.map((r, i) =>
+                                i === idx
+                                  ? { ...r, qty: Math.max(0, Number(e.target.value) || 0) }
+                                  : r
+                              ),
+                            }))
+                          }
+                          placeholder="Qty"
+                          className="h-[36px] px-2 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                        />
+                        <label className="flex items-center gap-1.5 font-body text-[11px] text-black/55 whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={row.outOfStock}
+                            onChange={(e) =>
+                              setProductForm((s) => ({
+                                ...s,
+                                sizeStock: s.sizeStock.map((r, i) =>
+                                  i === idx ? { ...r, outOfStock: e.target.checked } : r
+                                ),
+                              }))
+                            }
+                          />
+                          Out
+                        </label>
+                        {productForm.sizeStock.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProductForm((s) => ({
+                                ...s,
+                                sizeStock: s.sizeStock.filter((_, i) => i !== idx),
+                              }))
+                            }
+                            className="font-body text-[11px] text-red-600 hover:text-red-700"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Weight (kg)</label>
@@ -1251,6 +1418,104 @@ export default function Admin() {
                 />
               </div>
 
+              {isKurtiCategory(productForm.category) && (
+                <div className="border border-gold/25 bg-[#faf8f2] p-4 space-y-3">
+                  <p className="font-body text-[12px] font-semibold uppercase tracking-[0.08em] text-gold-dark">
+                    Kurti details
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-body text-[11px] uppercase tracking-[0.06em] text-black/50">Fabric</label>
+                      <input
+                        value={productForm.kurtiDetails.fabric}
+                        onChange={(e) =>
+                          setProductForm((s) => ({
+                            ...s,
+                            kurtiDetails: { ...s.kurtiDetails, fabric: e.target.value },
+                          }))
+                        }
+                        className="w-full mt-1 h-[40px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                        placeholder="e.g. Kota"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-body text-[11px] uppercase tracking-[0.06em] text-black/50">Style</label>
+                      <input
+                        value={productForm.kurtiDetails.style}
+                        onChange={(e) =>
+                          setProductForm((s) => ({
+                            ...s,
+                            kurtiDetails: { ...s.kurtiDetails, style: e.target.value },
+                          }))
+                        }
+                        className="w-full mt-1 h-[40px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                        placeholder="e.g. Maxi"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-body text-[11px] uppercase tracking-[0.06em] text-black/50">Color</label>
+                      <input
+                        value={productForm.kurtiDetails.color}
+                        onChange={(e) =>
+                          setProductForm((s) => ({
+                            ...s,
+                            kurtiDetails: { ...s.kurtiDetails, color: e.target.value },
+                          }))
+                        }
+                        className="w-full mt-1 h-[40px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                        placeholder="e.g. Orange"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-body text-[11px] uppercase tracking-[0.06em] text-black/50">Length</label>
+                      <input
+                        value={productForm.kurtiDetails.length}
+                        onChange={(e) =>
+                          setProductForm((s) => ({
+                            ...s,
+                            kurtiDetails: { ...s.kurtiDetails, length: e.target.value },
+                          }))
+                        }
+                        className="w-full mt-1 h-[40px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                        placeholder="e.g. 44 inch"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-body text-[11px] uppercase tracking-[0.06em] text-black/50">Lining</label>
+                      <select
+                        value={productForm.kurtiDetails.lining}
+                        onChange={(e) =>
+                          setProductForm((s) => ({
+                            ...s,
+                            kurtiDetails: { ...s.kurtiDetails, lining: e.target.value },
+                          }))
+                        }
+                        className="w-full mt-1 h-[40px] px-3 border border-black/10 font-body text-[13px] bg-white focus:outline-none focus:border-black/30"
+                      >
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="font-body text-[11px] uppercase tracking-[0.06em] text-black/50">Pocket</label>
+                      <select
+                        value={productForm.kurtiDetails.pocket}
+                        onChange={(e) =>
+                          setProductForm((s) => ({
+                            ...s,
+                            kurtiDetails: { ...s.kurtiDetails, pocket: e.target.value },
+                          }))
+                        }
+                        className="w-full mt-1 h-[40px] px-3 border border-black/10 font-body text-[13px] bg-white focus:outline-none focus:border-black/30"
+                      >
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {isLeggingsAdminForm(productForm.category, productForm.colors) ? (
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
@@ -1258,6 +1523,7 @@ export default function Admin() {
                   </label>
                   <p className="font-body text-[11px] text-black/35 mt-1 mb-2">
                     Do not upload 48 separate colour photos. Customers see these photos + colour circles below.
+                    Each file is saved as {PRODUCT_IMAGE_SIZE}×{PRODUCT_IMAGE_SIZE} px (square).
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {productForm.galleryImages.map((url, slotIdx) => (
@@ -1275,7 +1541,7 @@ export default function Admin() {
                             if (!file) return
                             try {
                               setProductError('')
-                              const dataUrl = await compressImageFile(file)
+                              const dataUrl = await compressProductImage(file)
                               setProductForm((s) => {
                                 const gallery = [...s.galleryImages]
                                 gallery[slotIdx] = dataUrl
@@ -1317,7 +1583,7 @@ export default function Admin() {
                       if (!file) return
                       try {
                         setProductError('')
-                        const dataUrl = await compressImageFile(file)
+                        const dataUrl = await compressProductImage(file)
                         setProductForm((s) => ({ ...s, image: dataUrl, galleryImages: [dataUrl, '', ''] }))
                       } catch {
                         setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
@@ -1363,7 +1629,8 @@ export default function Admin() {
                   </button>
                 </div>
                 <p className="font-body text-[11px] text-black/35 mt-1">
-                  Upload 1–3 photos per colour — customers see a slideshow (auto + manual).
+                  Upload 1–3 photos per colour — saved as {PRODUCT_IMAGE_SIZE}×{PRODUCT_IMAGE_SIZE} px each.
+                  Customers see a slideshow (auto + manual).
                 </p>
                 <div className="mt-3 space-y-4 max-h-[420px] overflow-y-auto pr-1">
                   {productForm.colors.map((color, idx) => {
@@ -1417,7 +1684,7 @@ export default function Admin() {
                                   if (!file) return
                                   try {
                                     setProductError('')
-                                    const dataUrl = await compressImageFile(file)
+                                    const dataUrl = await compressProductImage(file)
                                     setProductForm((s) => {
                                       const nextColors = s.colors.map((c) => {
                                         if (c.id !== color.id) return c
