@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import CheckoutModal from '@/components/CheckoutModal'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
+import { resolveCartItemImage } from '@/lib/cart-image'
 import { clearCart, readCart, removeCartItem, subscribeCart, updateCartItem } from '@/lib/cart-store'
+import { useProducts } from '@/hooks/use-products'
 import { calcCartTotals, formatDeliveryNote, formatWeightKg, isTamilNadu } from '@/lib/delivery'
 import { INDIAN_STATES } from '@/lib/indian-states'
 
@@ -11,7 +13,17 @@ const CART_STATE_KEY = 'looklike.cart.delivery-state'
 
 export default function Cart() {
   const navigate = useNavigate()
+  const { products } = useProducts()
   const [items, setItems] = useState(() => readCart())
+
+  const displayItems = useMemo(
+    () =>
+      items.map((i) => ({
+        ...i,
+        image: resolveCartItemImage(i, products),
+      })),
+    [items, products]
+  )
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -78,7 +90,7 @@ export default function Cart() {
         ) : (
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
             <div className="space-y-4">
-              {items.map((i) => (
+              {displayItems.map((i) => (
                 <div key={`${i.productId}-${i.size}-${i.color}`} className="border border-black/[0.06] p-4 sm:p-5">
                   <div className="flex gap-4">
                     <div className="w-[86px] h-[110px] bg-[#f7f7f7] overflow-hidden shrink-0">
@@ -212,7 +224,7 @@ export default function Cart() {
       <CheckoutModal
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
-        items={items}
+        items={displayItems}
         initialState={deliveryState}
         onSuccess={(message) => {
           setSuccessMessage(message || '')

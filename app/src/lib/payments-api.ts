@@ -1,3 +1,4 @@
+import { cartImageRef } from '@/lib/cart-image'
 import type { CartItem } from '@/lib/cart-store'
 import type { OrderNotifyInfo } from '@/lib/shop-contact'
 import { getApiBase } from '@/lib/api-base'
@@ -71,7 +72,7 @@ function mapCartItems(items: CartItem[]) {
     quantity: i.quantity,
     size: i.size,
     color: i.color,
-    image: i.image,
+    image: cartImageRef(i.image),
     weightKg: i.weightKg,
   }))
 }

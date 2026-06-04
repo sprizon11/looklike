@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { Routes, Route } from 'react-router'
+import { repairCartStorage } from '@/lib/cart-store'
 import Home from './pages/Home'
 import Admin from './pages/Admin'
 import ProductDetail from './pages/ProductDetail'
@@ -8,6 +10,10 @@ import Products from './pages/Products'
 import WhatsAppFloat from './components/WhatsAppFloat'
 
 export default function App() {
+  useEffect(() => {
+    repairCartStorage()
+  }, [])
+
   return (
     <>
     <Routes>

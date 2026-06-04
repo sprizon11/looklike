@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ChevronLeft } from 'lucide-react'
 import { useFeatured } from '@/hooks/use-featured'
+import { cartImageRef } from '@/lib/cart-image'
 import { addToCart } from '@/lib/cart-store'
 
 export default function FeaturedDetail() {
@@ -84,7 +85,7 @@ export default function FeaturedDetail() {
                     productId: `featured-${item.id}`,
                     name: item.name,
                     price: item.price,
-                    image: item.image,
+                    image: cartImageRef(item.image),
                     size: activeSize,
                     color: 'Default',
                     quantity: 1,

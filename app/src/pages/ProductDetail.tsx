@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ChevronLeft, Check, ShoppingBag } from 'lucide-react'
 import { useProducts } from '@/hooks/use-products'
-import { addToCart } from '@/lib/cart-store'
+import { cartImageRef } from '@/lib/cart-image'
+import { addToCart, CartStorageError } from '@/lib/cart-store'
 import { buildWhatsAppUrl } from '@/lib/shop-contact'
 import {
   colorImages,
@@ -111,13 +112,7 @@ export default function ProductDetail() {
     [colors, selectedColorId]
   )
 
-  const maxQtyForColor = useMemo(() => {
-    if (isLeggings) return maxQtyForSize
-    if (selectedColor?.stock !== undefined && selectedColor.stock > 0) {
-      return Math.min(maxQtyForSize, selectedColor.stock)
-    }
-    return maxQtyForSize
-  }, [isLeggings, maxQtyForSize, selectedColor?.stock])
+  const maxQtyForColor = maxQtyForSize
 
   useEffect(() => {
     const cap = maxQtyForColor
@@ -219,14 +214,6 @@ export default function ProductDetail() {
       setPickError(`Size ${row.size} is out of stock.`)
       return false
     }
-    if (trackSizeQty && quantity > row.qty) {
-      setPickError(`Only ${row.qty} available in size ${row.size}.`)
-      return false
-    }
-    if (!isLeggings && selectedColor?.stock !== undefined && quantity > selectedColor.stock) {
-      setPickError(`Only ${selectedColor.stock} available in ${selectedColor.name}.`)
-      return false
-    }
     return true
   }
 
@@ -237,31 +224,41 @@ export default function ProductDetail() {
 
     if (!validateColors()) return
 
-    if (isLeggings) {
-      for (let i = 0; i < quantity; i++) {
+    const cartImage = cartImageRef(activeImage) || cartImageRef(product.image)
+
+    try {
+      if (isLeggings) {
+        for (let i = 0; i < quantity; i++) {
+          addToCart({
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            image: cartImage,
+            size,
+            color: pieceColors[i],
+            quantity: 1,
+            weightKg: product.weightKg ?? 0.5,
+          })
+        }
+      } else {
+        const colorName = selectedColor?.name || ''
         addToCart({
           productId: product.id,
           name: product.name,
           price: product.price,
-          image: activeImage,
+          image: cartImage,
           size,
-          color: pieceColors[i],
-          quantity: 1,
+          color: colorName,
+          quantity,
           weightKg: product.weightKg ?? 0.5,
         })
       }
-    } else {
-      const colorName = selectedColor?.name || ''
-      addToCart({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: activeImage,
-        size,
-        color: colorName,
-        quantity,
-        weightKg: product.weightKg ?? 0.5,
-      })
+    } catch (e) {
+      if (e instanceof CartStorageError) {
+        setPickError(e.message)
+        return
+      }
+      throw e
     }
 
     setAdded(true)
@@ -431,9 +428,6 @@ export default function ProductDetail() {
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Quantity
-                {maxQtyForColor > 0 ? (
-                  <span className="text-black/40 normal-case"> (max {maxQtyForColor})</span>
-                ) : null}
               </p>
               <div className="flex items-center mt-3 border border-black/15 w-fit">
                 <button
@@ -446,10 +440,8 @@ export default function ProductDetail() {
                 </button>
                 <span className="w-12 text-center font-body text-[14px] text-black">{quantity}</span>
                 <button
-                  onClick={() =>
-                    setQuantity((q) => (maxQtyForColor > 0 ? Math.min(maxQtyForColor, q + 1) : q + 1))
-                  }
-                  disabled={maxQtyForColor > 0 && quantity >= maxQtyForColor}
+                  onClick={() => setQuantity((q) => Math.min(maxQtyForColor, q + 1))}
+                  disabled={maxQtyForColor === 0 || quantity >= maxQtyForColor}
                   className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
                   aria-label="Increase quantity"
                 >

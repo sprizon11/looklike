@@ -1,3 +1,5 @@
+import { cartImageRef } from '@/lib/cart-image'
+
 export type CartItem = {
   productId: string
   name: string
@@ -13,6 +15,13 @@ export type CartItem = {
 const STORAGE_KEY = 'looklike.cart.v1'
 const CHANGE_EVENT = 'looklike-cart-changed'
 
+export class CartStorageError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CartStorageError'
+  }
+}
+
 function safeParse<T>(value: string | null): T | null {
   if (!value) return null
   try {
@@ -22,15 +31,55 @@ function safeParse<T>(value: string | null): T | null {
   }
 }
 
+export function compactCartItemForStorage(item: CartItem): CartItem {
+  return {
+    ...item,
+    image: cartImageRef(item.image),
+  }
+}
+
+function sanitizeCart(items: CartItem[]): CartItem[] {
+  return items.map(compactCartItemForStorage)
+}
+
 export function readCart(): CartItem[] {
   if (typeof window === 'undefined') return []
   const parsed = safeParse<CartItem[]>(window.localStorage.getItem(STORAGE_KEY))
-  return Array.isArray(parsed) ? parsed : []
+  if (!Array.isArray(parsed)) return []
+  return sanitizeCart(parsed)
 }
 
 export function writeCart(next: CartItem[]) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+
+  const compact = sanitizeCart(next)
+  const payload = JSON.stringify(compact)
+
+  const tryWrite = (data: string) => {
+    window.localStorage.setItem(STORAGE_KEY, data)
+  }
+
+  try {
+    tryWrite(payload)
+  } catch (e) {
+    const isQuota =
+      e instanceof DOMException &&
+      (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)
+
+    if (isQuota) {
+      try {
+        const stripped = JSON.stringify(sanitizeCart(compact.map((i) => ({ ...i, image: '' }))))
+        tryWrite(stripped)
+      } catch {
+        throw new CartStorageError(
+          'Cart is full. Open Cart, tap Clear cart, or clear site data for looklike.in in your browser, then try again.'
+        )
+      }
+    } else {
+      throw e
+    }
+  }
+
   window.dispatchEvent(new Event(CHANGE_EVENT))
 }
 
@@ -50,16 +99,34 @@ export function subscribeCart(onChange: () => void) {
   }
 }
 
+/** One-time cleanup if cart JSON still contains huge data URLs. */
+export function repairCartStorage(): void {
+  if (typeof window === 'undefined') return
+  const raw = window.localStorage.getItem(STORAGE_KEY)
+  if (!raw || !raw.includes('data:image')) return
+  try {
+    const parsed = safeParse<CartItem[]>(raw)
+    if (Array.isArray(parsed)) writeCart(parsed)
+  } catch {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function addToCart(item: CartItem) {
+  const entry = compactCartItemForStorage(item)
   const current = readCart()
   const idx = current.findIndex(
-    (i) => i.productId === item.productId && i.size === item.size && i.color === item.color
+    (i) => i.productId === entry.productId && i.size === entry.size && i.color === entry.color
   )
   if (idx === -1) {
-    writeCart([...current, item])
+    writeCart([...current, entry])
   } else {
     const next = [...current]
-    next[idx] = { ...next[idx], quantity: next[idx].quantity + item.quantity }
+    next[idx] = { ...next[idx], quantity: next[idx].quantity + entry.quantity }
     writeCart(next)
   }
 }
