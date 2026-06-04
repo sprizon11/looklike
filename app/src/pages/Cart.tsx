@@ -140,43 +140,48 @@ export default function Cart() {
                         </button>
                       </div>
 
-                      <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center border border-black/15 w-fit">
-                          <button
-                            onClick={() =>
-                              updateCartItem(
-                                { productId: i.productId, size: i.size, color: i.color },
-                                { quantity: Math.max(1, i.quantity - 1) }
-                              )
-                            }
-                            className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors"
-                            aria-label="Decrease quantity"
-                          >
-                            −
-                          </button>
-                          <span className="w-12 text-center font-body text-[14px] text-black">{i.quantity}</span>
-                          <button
-                            onClick={() =>
-                              updateCartItem(
-                                { productId: i.productId, size: i.size, color: i.color },
-                                {
-                                  quantity:
-                                    maxQty > 0 ? Math.min(maxQty, i.quantity + 1) : i.quantity + 1,
-                                }
-                              )
-                            }
-                            disabled={maxQty > 0 && i.quantity >= maxQty}
-                            className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
-                            aria-label="Increase quantity"
-                          >
-                            +
-                          </button>
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center border border-black/15 w-fit">
+                            <button
+                              onClick={() =>
+                                updateCartItem(
+                                  { productId: i.productId, size: i.size, color: i.color },
+                                  { quantity: Math.max(1, i.quantity - 1) }
+                                )
+                              }
+                              className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors"
+                              aria-label="Decrease quantity"
+                            >
+                              −
+                            </button>
+                            <span className="w-12 text-center font-body text-[14px] text-black">{i.quantity}</span>
+                            <button
+                              onClick={() =>
+                                updateCartItem(
+                                  { productId: i.productId, size: i.size, color: i.color },
+                                  {
+                                    quantity:
+                                      maxQty > 0 ? Math.min(maxQty, i.quantity + 1) : i.quantity + 1,
+                                  }
+                                )
+                              }
+                              disabled={maxQty > 0 && i.quantity >= maxQty}
+                              className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
+                              aria-label="Increase quantity"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <p className="font-body text-[14px] font-medium text-black shrink-0">
+                            Rs. {i.price * i.quantity}
+                          </p>
                         </div>
                         {maxQty > 0 && i.quantity >= maxQty ? (
-                          <p className="font-body text-[11px] text-red-600 mt-1">Max {maxQty} for this size</p>
+                          <p className="font-body text-[11px] text-red-600 mt-2">
+                            Max {maxQty} for this size
+                          </p>
                         ) : null}
-
-                        <p className="font-body text-[14px] font-medium text-black">Rs. {i.price * i.quantity}</p>
                       </div>
                     </div>
                   </div>
