@@ -64,6 +64,7 @@ const ProductColorSchema = z
     images: z.array(z.string().min(1)).max(3).optional(),
     swatchHex: z.string().optional(),
     stock: z.number().int().nonnegative().optional(),
+    outOfStock: z.boolean().optional(),
   })
   .transform((c) => normalizeColorRecord(c))
 
@@ -89,6 +90,7 @@ function normalizeColorRecord(c) {
         name: c.name,
         ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
         ...(c.stock !== undefined ? { stock: c.stock } : {}),
+        ...(c.outOfStock ? { outOfStock: true } : {}),
       }
     }
     throw new Error('Each colour needs at least one image')
@@ -100,6 +102,7 @@ function normalizeColorRecord(c) {
     image: images[0],
     ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
     ...(c.stock !== undefined ? { stock: c.stock } : {}),
+    ...(c.outOfStock ? { outOfStock: true } : {}),
   }
 }
 
@@ -123,6 +126,7 @@ const ProductCreateSchema = z.object({
   description: z.string().optional(),
   weightKg: z.number().positive().optional(),
   colors: z.array(ProductColorSchema).min(1).optional(),
+  outOfStockColors: z.array(z.string().min(1)).optional(),
   kurtiDetails: z
     .object({
       fabric: z.string().optional(),

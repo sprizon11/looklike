@@ -23,6 +23,7 @@ import {
   EyeOff,
   Printer,
 } from 'lucide-react'
+import LeggingsOutOfStockPicker from '@/components/LeggingsOutOfStockPicker'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
 import { useFeatured } from '@/hooks/use-featured'
@@ -59,6 +60,7 @@ import {
   rememberCustomCategory,
   resolveProductCategory,
 } from '@/lib/admin-categories'
+import { extractOutOfStockColorNames } from '@/lib/color-stock'
 import {
   emptyKurtiDetails,
   isKurtiCategory,
@@ -104,6 +106,7 @@ export default function Admin() {
     colors: [] as ProductColor[],
     otherCategoryName: '',
     kurtiDetails: emptyKurtiDetails(),
+    outOfStockColors: [] as string[],
   })
 
   const [customCategoryTick, setCustomCategoryTick] = useState(0)
@@ -257,6 +260,7 @@ export default function Admin() {
       colors: [emptyColorEntry()],
       otherCategoryName: '',
       kurtiDetails: emptyKurtiDetails(),
+      outOfStockColors: [],
     })
     setProductModalOpen(true)
   }
@@ -287,6 +291,7 @@ export default function Admin() {
       colors,
       otherCategoryName: '',
       kurtiDetails: normalizeKurtiDetails(p.kurtiDetails),
+      outOfStockColors: extractOutOfStockColorNames(p),
     })
     setProductModalOpen(true)
   }
@@ -436,6 +441,10 @@ export default function Admin() {
     }
 
     setProductError('')
+    const outOfStockColors = isLeggings
+      ? productForm.outOfStockColors.filter(Boolean)
+      : undefined
+
     setProductSaving(true)
     try {
       if (editingProduct) {
@@ -452,6 +461,7 @@ export default function Admin() {
           weightKg,
           colors,
           kurtiDetails,
+          outOfStockColors,
         })
       } else {
         await addProduct({
@@ -467,6 +477,7 @@ export default function Admin() {
           weightKg,
           colors,
           kurtiDetails,
+          outOfStockColors,
         })
       }
       closeProductModal()
@@ -1602,13 +1613,21 @@ export default function Admin() {
               )}
 
               {isLeggingsAdminForm(productForm.category, productForm.colors) ? (
-                <div className="p-3 border border-gold/30 bg-[#faf8f2]">
-                  <p className="font-body text-[13px] font-medium text-black">48 colour circles on website</p>
-                  <p className="font-body text-[12px] text-black/60 mt-1 leading-relaxed">
-                    When you save, all <strong>CL 1 – CL 48</strong> colours are added automatically. Customers
-                    pick from scrollable <strong>circles with names</strong> — no photo needed per colour.
-                  </p>
-                </div>
+                <>
+                  <div className="p-3 border border-gold/30 bg-[#faf8f2]">
+                    <p className="font-body text-[13px] font-medium text-black">48 colour circles on website</p>
+                    <p className="font-body text-[12px] text-black/60 mt-1 leading-relaxed">
+                      When you save, all <strong>CL 1 – CL 48</strong> colours are added automatically. Customers
+                      pick from scrollable <strong>circles with names</strong> — no photo needed per colour.
+                    </p>
+                  </div>
+                  <LeggingsOutOfStockPicker
+                    selected={productForm.outOfStockColors}
+                    onChange={(names) =>
+                      setProductForm((s) => ({ ...s, outOfStockColors: names }))
+                    }
+                  />
+                </>
               ) : (
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1669,6 +1688,34 @@ export default function Admin() {
                           className="w-full h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
                           placeholder="e.g. CL 1. Black, Wine, Mehandi"
                         />
+                        <div>
+                          <label className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">
+                            Quantity (0 = out of stock)
+                          </label>
+                          <input
+                            inputMode="numeric"
+                            value={color.stock === undefined ? '' : String(color.stock)}
+                            onChange={(e) => {
+                              const raw = e.target.value.trim()
+                              const stock =
+                                raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0))
+                              setProductForm((s) => ({
+                                ...s,
+                                colors: s.colors.map((c) =>
+                                  c.id === color.id
+                                    ? {
+                                        ...c,
+                                        stock,
+                                        outOfStock: stock === 0,
+                                      }
+                                    : c
+                                ),
+                              }))
+                            }}
+                            className="w-full mt-1 h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                            placeholder="e.g. 10"
+                          />
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           {slots.map((slotUrl, slotIdx) => (
                             <div key={slotIdx} className="space-y-1">

@@ -52,6 +52,7 @@ export async function apiAddProduct(input: {
   weightKg?: number
   colors?: ProductColor[]
   kurtiDetails?: KurtiDetails
+  outOfStockColors?: string[]
 }): Promise<Product> {
   const res = await apiFetch('/api/products', { method: 'POST', body: JSON.stringify(input) })
   const json = (await res.json()) as { product: Product }
@@ -73,6 +74,7 @@ export async function apiUpdateProduct(
     weightKg: number
     colors: ProductColor[]
     kurtiDetails: KurtiDetails
+    outOfStockColors: string[]
   }>
 ): Promise<Product> {
   const res = await apiFetch(`/api/products/${encodeURIComponent(id)}`, {

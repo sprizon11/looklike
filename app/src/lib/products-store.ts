@@ -22,6 +22,8 @@ export type Product = {
   colors?: ProductColor[]
   /** Fabric, lining, style, etc. — shown on Kurti product pages */
   kurtiDetails?: KurtiDetails
+  /** Leggings: full colour names (CL 1. Black, …) marked out of stock */
+  outOfStockColors?: string[]
   createdAt: number
   updatedAt: number
 }

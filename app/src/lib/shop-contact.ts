@@ -2,6 +2,10 @@
 export const SHOP_WHATSAPP_PHONE =
   (import.meta.env.VITE_SHOP_WHATSAPP as string | undefined)?.replace(/\D/g, '') || '919344841180'
 
+export const SHOP_INSTAGRAM_URL =
+  (import.meta.env.VITE_SHOP_INSTAGRAM as string | undefined)?.trim() ||
+  'https://www.instagram.com/look_like_tirupur?igsh=OTVhOGdoNDFsaXkx'
+
 export function buildWhatsAppUrl(message: string) {
   return `https://wa.me/${SHOP_WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`
 }

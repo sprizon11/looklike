@@ -4,7 +4,6 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 import Navigation from '@/sections/Navigation'
 import Hero from '@/sections/Hero'
-import MarqueeTicker from '@/sections/MarqueeTicker'
 import FeaturedCollection from '@/sections/FeaturedCollection'
 import ProductsGrid from '@/sections/ProductsGrid'
 import AboutSection from '@/sections/AboutSection'
@@ -46,7 +45,6 @@ export default function Home() {
     <div>
       <Navigation />
       <Hero />
-      <MarqueeTicker />
       <FeaturedCollection />
       <ProductsGrid />
       <AboutSection />

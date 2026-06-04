@@ -13,6 +13,11 @@ import {
   type ProductColor,
 } from '@/lib/product-colors'
 import {
+  colorStockHint,
+  colorUnavailableMessage,
+  isColorAvailable,
+} from '@/lib/color-stock'
+import {
   getProductSizeStock,
   hasExplicitSizeStock,
   isSizeAvailable,
@@ -70,18 +75,29 @@ export default function ProductDetail() {
   )
 
   useEffect(() => {
-    if (colors.length > 0) setSelectedColorId(colors[0].id)
+    if (colors.length === 0) return
+    const first = colors.find((c) => isColorAvailable(c)) ?? colors[0]
+    setSelectedColorId(first.id)
   }, [product?.id, colors])
 
+  const firstAvailableColorName = useMemo(
+    () => colors.find((c) => isColorAvailable(c))?.name || defaultColorName,
+    [colors, defaultColorName]
+  )
+
   useEffect(() => {
-    if (!defaultColorName) return
+    if (!firstAvailableColorName) return
     setPieceColors((prev) => {
       const next = [...prev]
-      while (next.length < quantity) next.push(defaultColorName)
+      while (next.length < quantity) next.push(firstAvailableColorName)
       while (next.length > quantity) next.pop()
-      return next.map((c) => c || defaultColorName)
+      return next.map((c) => {
+        const row = colors.find((x) => x.name === c)
+        if (row && isColorAvailable(row)) return c
+        return firstAvailableColorName
+      })
     })
-  }, [quantity, defaultColorName])
+  }, [quantity, firstAvailableColorName, colors])
 
   useEffect(() => {
     if (sizeRows.length === 0) return
@@ -90,14 +106,23 @@ export default function ProductDetail() {
     setSelectedSize(pick)
   }, [product?.id, sizeRows, trackSizeQty])
 
-  useEffect(() => {
-    if (maxQtyForSize > 0) setQuantity((q) => Math.min(Math.max(1, q), maxQtyForSize))
-  }, [selectedSize, maxQtyForSize])
-
   const selectedColor: ProductColor | undefined = useMemo(
     () => colors.find((c) => c.id === selectedColorId) ?? colors[0],
     [colors, selectedColorId]
   )
+
+  const maxQtyForColor = useMemo(() => {
+    if (isLeggings) return maxQtyForSize
+    if (selectedColor?.stock !== undefined && selectedColor.stock > 0) {
+      return Math.min(maxQtyForSize, selectedColor.stock)
+    }
+    return maxQtyForSize
+  }, [isLeggings, maxQtyForSize, selectedColor?.stock])
+
+  useEffect(() => {
+    const cap = maxQtyForColor
+    if (cap > 0) setQuantity((q) => Math.min(Math.max(1, q), cap))
+  }, [selectedSize, maxQtyForColor, selectedColor?.id])
 
   const galleryImages = useMemo(() => {
     if (!product) return []
@@ -137,7 +162,54 @@ export default function ProductDetail() {
     setQuantity((q) => Math.min(Math.max(1, q), cap))
   }
 
+  const validateColors = (): boolean => {
+    if (isLeggings) {
+      for (let i = 0; i < quantity; i++) {
+        const name = pieceColors[i]
+        const row = colors.find((c) => c.name === name)
+        if (!name?.trim()) {
+          setPickError(`Please choose a colour for legging ${i + 1}.`)
+          return false
+        }
+        if (row && !isColorAvailable(row)) {
+          setPickError(colorUnavailableMessage(row))
+          return false
+        }
+      }
+      return true
+    }
+    if (selectedColor && !isColorAvailable(selectedColor)) {
+      setPickError(colorUnavailableMessage(selectedColor))
+      return false
+    }
+    return true
+  }
+
+  const pickDressColor = (c: ProductColor) => {
+    if (!isColorAvailable(c)) {
+      setPickError(colorUnavailableMessage(c))
+      return
+    }
+    setSelectedColorId(c.id)
+    setPickError('')
+  }
+
+  const pickLeggingColor = (index: number, name: string) => {
+    const row = colors.find((c) => c.name === name)
+    if (row && !isColorAvailable(row)) {
+      setPickError(colorUnavailableMessage(row))
+      return
+    }
+    setPieceColors((prev) => {
+      const next = [...prev]
+      next[index] = name
+      return next
+    })
+    setPickError('')
+  }
+
   const validateBeforeOrder = (): boolean => {
+    if (!validateColors()) return false
     const row = sizeRows.find((r) => r.size === selectedSize)
     if (!row) {
       setPickError('Please select a size.')
@@ -151,6 +223,10 @@ export default function ProductDetail() {
       setPickError(`Only ${row.qty} available in size ${row.size}.`)
       return false
     }
+    if (!isLeggings && selectedColor?.stock !== undefined && quantity > selectedColor.stock) {
+      setPickError(`Only ${selectedColor.stock} available in ${selectedColor.name}.`)
+      return false
+    }
     return true
   }
 
@@ -159,12 +235,9 @@ export default function ProductDetail() {
     const size = selectedSize
     setPickError('')
 
+    if (!validateColors()) return
+
     if (isLeggings) {
-      const missing = pieceColors.findIndex((c) => !c?.trim())
-      if (missing !== -1) {
-        setPickError(`Please choose a colour for legging ${missing + 1}.`)
-        return
-      }
       for (let i = 0; i < quantity; i++) {
         addToCart({
           productId: product.id,
@@ -200,12 +273,9 @@ export default function ProductDetail() {
     const size = selectedSize
     setPickError('')
 
+    if (!validateColors()) return
+
     if (isLeggings) {
-      const missing = pieceColors.findIndex((c) => !c?.trim())
-      if (missing !== -1) {
-        setPickError(`Please choose a colour for legging ${missing + 1}.`)
-        return
-      }
       const colourLines = pieceColors.map((c, i) => `Legging ${i + 1}: ${c}`).join('\n')
       const message = `Hi! I'd like to order:\n${product.name}\n${colourLines}\nSize: ${size}\nPieces: ${quantity}\nPrice each: Rs. ${product.price}`
       window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer')
@@ -267,13 +337,19 @@ export default function ProductDetail() {
                 <div className="mt-3 flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
                   {colors.map((c) => {
                     const active = selectedColor?.id === c.id
+                    const available = isColorAvailable(c)
+                    const hint = colorStockHint(c)
                     return (
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => setSelectedColorId(c.id)}
+                        onClick={() => pickDressColor(c)}
                         className={`shrink-0 w-[108px] text-left border-2 transition-colors ${
-                          active ? 'border-gold' : 'border-black/10 hover:border-gold/40'
+                          !available
+                            ? 'border-black/10 opacity-55 cursor-not-allowed'
+                            : active
+                              ? 'border-gold'
+                              : 'border-black/10 hover:border-gold/40'
                         }`}
                       >
                         <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
@@ -288,6 +364,15 @@ export default function ProductDetail() {
                           <p className="font-body text-[12px] font-medium text-gold-dark mt-0.5">
                             Rs. {product.price}
                           </p>
+                          {hint ? (
+                            <p
+                              className={`font-body text-[10px] mt-0.5 ${
+                                !available ? 'text-red-600 font-medium' : 'text-black/45'
+                              }`}
+                            >
+                              {hint}
+                            </p>
+                          ) : null}
                         </div>
                       </button>
                     )
@@ -346,14 +431,14 @@ export default function ProductDetail() {
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Quantity
-                {maxQtyForSize > 0 ? (
-                  <span className="text-black/40 normal-case"> (max {maxQtyForSize} for size {selectedSize})</span>
+                {maxQtyForColor > 0 ? (
+                  <span className="text-black/40 normal-case"> (max {maxQtyForColor})</span>
                 ) : null}
               </p>
               <div className="flex items-center mt-3 border border-black/15 w-fit">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={maxQtyForSize === 0}
+                  disabled={maxQtyForColor === 0}
                   className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
                   aria-label="Decrease quantity"
                 >
@@ -362,9 +447,9 @@ export default function ProductDetail() {
                 <span className="w-12 text-center font-body text-[14px] text-black">{quantity}</span>
                 <button
                   onClick={() =>
-                    setQuantity((q) => (maxQtyForSize > 0 ? Math.min(maxQtyForSize, q + 1) : q + 1))
+                    setQuantity((q) => (maxQtyForColor > 0 ? Math.min(maxQtyForColor, q + 1) : q + 1))
                   }
-                  disabled={maxQtyForSize > 0 && quantity >= maxQtyForSize}
+                  disabled={maxQtyForColor > 0 && quantity >= maxQtyForColor}
                   className="w-10 h-10 font-body text-[18px] text-black/60 hover:text-black transition-colors disabled:opacity-40"
                   aria-label="Increase quantity"
                 >
@@ -382,7 +467,8 @@ export default function ProductDetail() {
                   <LeggingsColorStrip
                     colors={colors}
                     selectedName={pieceColors[0] || ''}
-                    onSelect={(name) => setPieceColors([name])}
+                    onSelect={(name) => pickLeggingColor(0, name)}
+                    onUnavailable={(c) => setPickError(colorUnavailableMessage(c))}
                     label={
                       pieceColors[0]
                         ? `Selected colour: ${pieceColors[0]}`
@@ -396,13 +482,8 @@ export default function ProductDetail() {
                       key={i}
                       colors={colors}
                       selectedName={pieceColors[i] || ''}
-                      onSelect={(name) =>
-                        setPieceColors((prev) => {
-                          const next = [...prev]
-                          next[i] = name
-                          return next
-                        })
-                      }
+                      onSelect={(name) => pickLeggingColor(i, name)}
+                      onUnavailable={(c) => setPickError(colorUnavailableMessage(c))}
                       label={
                         pieceColors[i]
                           ? `Legging ${i + 1}: ${pieceColors[i]}`
