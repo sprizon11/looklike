@@ -1,4 +1,3 @@
-import fs from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -8,6 +7,20 @@ import cors from 'cors'
 import Razorpay from 'razorpay'
 import { z } from 'zod'
 import { calcOrderTotals } from './delivery.js'
+import {
+  deleteProduct,
+  getStoreLabel,
+  insertOrder,
+  insertProduct,
+  listOrders,
+  listProducts,
+  readPaymentProof,
+  replaceOrder,
+  replaceProduct,
+  savePaymentProof,
+  seedProducts,
+} from './store.js'
+import { notifyShopWhatsAppOrder } from './whatsapp-notify.js'
 
 const app = express()
 
@@ -21,7 +34,6 @@ app.use(
 
 const PORT = Number(process.env.PORT || 8080)
 
-// Monorepo root (parent of backend/) — paths must not depend on process.cwd()
 const MONOREPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 function resolveFromRoot(envPath, fallbackRelative) {
@@ -30,10 +42,6 @@ function resolveFromRoot(envPath, fallbackRelative) {
   }
   return path.resolve(MONOREPO_ROOT, fallbackRelative)
 }
-
-const DATA_DIR = resolveFromRoot(process.env.DATA_DIR, 'backend/data')
-const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json')
-const ORDERS_FILE = path.join(DATA_DIR, 'orders.json')
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
@@ -47,18 +55,11 @@ const razorpay =
 const FRONTEND_DIST_DIR = resolveFromRoot(process.env.FRONTEND_DIST_DIR, 'app/dist')
 const FRONTEND_INDEX = path.join(FRONTEND_DIST_DIR, 'index.html')
 
-const ProductSchema = z.object({
+const ProductColorSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
-  category: z.string().min(1),
-  price: z.number().nonnegative(),
-  stock: z.number().int().nonnegative(),
   image: z.string().min(1),
-  size: z.string().optional(),
-  description: z.string().optional(),
-  weightKg: z.number().positive().optional(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
+  stock: z.number().int().nonnegative().optional(),
 })
 
 const ProductCreateSchema = z.object({
@@ -70,6 +71,7 @@ const ProductCreateSchema = z.object({
   size: z.string().optional(),
   description: z.string().optional(),
   weightKg: z.number().positive().optional(),
+  colors: z.array(ProductColorSchema).min(1).optional(),
 })
 
 const ProductUpdateSchema = ProductCreateSchema.partial()
@@ -80,6 +82,7 @@ const CartItemSchema = z.object({
   price: z.number().nonnegative(),
   quantity: z.number().int().positive(),
   size: z.string().min(1),
+  color: z.string().optional(),
   image: z.string().optional(),
   weightKg: z.number().positive().optional(),
 })
@@ -106,25 +109,6 @@ const VerifyPaymentSchema = z.object({
   razorpay_signature: z.string().min(1),
 })
 
-const OrderSchema = z.object({
-  id: z.string(),
-  customer: CustomerSchema,
-  items: z.array(CartItemSchema),
-  amount: z.number().nonnegative(),
-  subtotal: z.number().nonnegative().optional(),
-  deliveryCharge: z.number().nonnegative().optional(),
-  totalWeightKg: z.number().nonnegative().optional(),
-  currency: z.literal('INR'),
-  status: z.enum(['pending', 'paid', 'failed', 'cod', 'upi_pending', 'upi']),
-  paymentMethod: z.enum(['online', 'cod', 'upi']).optional(),
-  razorpayOrderId: z.string().optional(),
-  razorpayPaymentId: z.string().optional(),
-  upiReference: z.string().optional(),
-  paymentProof: z.string().optional(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
-})
-
 const CreateCodOrderSchema = z.object({
   customer: CustomerSchema,
   items: z.array(CartItemSchema).min(1),
@@ -144,26 +128,6 @@ function now() {
 
 function id(prefix = 'p') {
   return `${prefix}-${Math.random().toString(16).slice(2)}-${now()}`
-}
-
-async function ensureDataDir() {
-  await fs.mkdir(DATA_DIR, { recursive: true })
-}
-
-async function readJson(filePath, fallback) {
-  try {
-    const raw = await fs.readFile(filePath, 'utf8')
-    return JSON.parse(raw)
-  } catch {
-    return fallback
-  }
-}
-
-async function writeJsonAtomic(filePath, value) {
-  await ensureDataDir()
-  const tmp = `${filePath}.tmp`
-  await fs.writeFile(tmp, JSON.stringify(value, null, 2), 'utf8')
-  await fs.rename(tmp, filePath)
 }
 
 function defaultProducts() {
@@ -252,40 +216,41 @@ function defaultProducts() {
   ]
 }
 
+function normalizeProduct(raw) {
+  const colors =
+    Array.isArray(raw.colors) && raw.colors.length > 0
+      ? raw.colors
+      : [{ id: 'color-default', name: 'Default', image: raw.image }]
+  return {
+    ...raw,
+    colors,
+    image: colors[0]?.image || raw.image,
+    weightKg: raw.weightKg ?? 0.5,
+  }
+}
+
+function prepareProductPayload(data, timestamps) {
+  const colors =
+    Array.isArray(data.colors) && data.colors.length > 0
+      ? data.colors
+      : [{ id: id('color'), name: 'Default', image: data.image }]
+  return {
+    ...data,
+    colors,
+    image: colors[0].image,
+    weightKg: data.weightKg ?? 0.5,
+    ...timestamps,
+  }
+}
+
 async function readProducts() {
-  await ensureDataDir()
-  const list = await readJson(PRODUCTS_FILE, null)
-  if (!Array.isArray(list) || list.length === 0) {
-    const seeded = defaultProducts()
-    await writeJsonAtomic(PRODUCTS_FILE, seeded)
+  const list = await listProducts()
+  if (list.length === 0) {
+    const seeded = defaultProducts().map(normalizeProduct)
+    await seedProducts(seeded)
     return seeded
   }
-  const parsed = z.array(ProductSchema).safeParse(list)
-  if (!parsed.success) {
-    const seeded = defaultProducts()
-    await writeJsonAtomic(PRODUCTS_FILE, seeded)
-    return seeded
-  }
-  return parsed.data
-}
-
-async function writeProducts(next) {
-  const parsed = z.array(ProductSchema).safeParse(next)
-  if (!parsed.success) throw new Error('Invalid product data')
-  await writeJsonAtomic(PRODUCTS_FILE, parsed.data)
-}
-
-async function readOrders() {
-  await ensureDataDir()
-  const list = await readJson(ORDERS_FILE, [])
-  const parsed = z.array(OrderSchema).safeParse(list)
-  return parsed.success ? parsed.data : []
-}
-
-async function writeOrders(next) {
-  const parsed = z.array(OrderSchema).safeParse(next)
-  if (!parsed.success) throw new Error('Invalid order data')
-  await writeJsonAtomic(ORDERS_FILE, parsed.data)
+  return list.map(normalizeProduct)
 }
 
 function calcTotal(items) {
@@ -303,7 +268,7 @@ function buildUpiPayUri({ upiId, payeeName, amount, note }, { includeNote = true
   return `upi://pay?${params.toString()}`
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true }))
+app.get('/health', (_req, res) => res.json({ ok: true, store: getStoreLabel() }))
 
 app.get('/api/payments/config', (_req, res) => {
   res.json({
@@ -368,8 +333,7 @@ app.post('/api/payments/create-order', async (req, res) => {
       updatedAt: t,
     }
 
-    const orders = await readOrders()
-    await writeOrders([pending, ...orders])
+    await insertOrder(pending)
 
     res.status(201).json({
       orderId,
@@ -379,7 +343,6 @@ app.post('/api/payments/create-order', async (req, res) => {
       keyId: RAZORPAY_KEY_ID,
     })
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('Razorpay create order failed:', err)
     res.status(500).json({ error: 'Could not create payment order' })
   }
@@ -407,23 +370,22 @@ app.post('/api/payments/verify', async (req, res) => {
     return
   }
 
-  const orders = await readOrders()
-  const idx = orders.findIndex((o) => o.id === input.data.orderId)
-  if (idx === -1) {
+  const orders = await listOrders()
+  const current = orders.find((o) => o.id === input.data.orderId)
+  if (!current) {
     res.status(404).json({ error: 'Order not found' })
     return
   }
 
   const t = now()
   const updated = {
-    ...orders[idx],
+    ...current,
     status: 'paid',
     paymentMethod: 'online',
     razorpayPaymentId: input.data.razorpay_payment_id,
     updatedAt: t,
   }
-  const next = [...orders.slice(0, idx), updated, ...orders.slice(idx + 1)]
-  await writeOrders(next)
+  await replaceOrder(updated)
 
   res.json({ ok: true, order: updated })
 })
@@ -468,8 +430,7 @@ app.post('/api/orders/upi', async (req, res) => {
     updatedAt: t,
   }
 
-  const orders = await readOrders()
-  await writeOrders([order, ...orders])
+  await insertOrder(order)
 
   const upiUri = buildUpiPayUri({
     upiId: UPI_ID,
@@ -501,35 +462,56 @@ app.post('/api/orders/:id/upi-confirm', async (req, res) => {
     return
   }
 
-  const orders = await readOrders()
-  const idx = orders.findIndex((o) => o.id === req.params.id)
-  if (idx === -1) {
+  const orders = await listOrders()
+  const current = orders.find((o) => o.id === req.params.id)
+  if (!current) {
     res.status(404).json({ error: 'Order not found' })
     return
   }
 
-  const current = orders[idx]
   if (current.status !== 'upi_pending') {
     res.status(400).json({ error: 'Order is not awaiting UPI payment' })
     return
   }
 
-  const t = now()
-  const upiReference = input.data.upiReference?.trim() || undefined
-  const paymentProof = input.data.paymentProof
-  const updated = {
-    ...current,
-    status: 'upi',
-    upiReference,
-    paymentProof,
-    updatedAt: t,
+  try {
+    const t = now()
+    const upiReference = input.data.upiReference?.trim() || undefined
+    const paymentProofFile = await savePaymentProof(current.id, input.data.paymentProof)
+    const updated = {
+      ...current,
+      status: 'upi',
+      upiReference,
+      paymentProofFile,
+      updatedAt: t,
+    }
+    await replaceOrder(updated)
+
+    const whatsapp = await notifyShopWhatsAppOrder(updated)
+
+    res.json({ ok: true, order: updated, ...whatsapp })
+  } catch (err) {
+    console.error('UPI confirm failed:', err)
+    res.status(500).json({
+      error: 'Could not save order. Try a smaller payment screenshot (under 2 MB).',
+    })
   }
-  const next = [...orders.slice(0, idx), updated, ...orders.slice(idx + 1)]
-  await writeOrders(next)
+})
 
-  const whatsapp = await notifyShopWhatsAppOrder(updated)
-
-  res.json({ ok: true, order: updated, ...whatsapp })
+app.get('/api/orders/:id/payment-proof', async (req, res) => {
+  const orders = await listOrders()
+  const order = orders.find((o) => o.id === req.params.id)
+  if (!order?.paymentProofFile) {
+    res.status(404).json({ error: 'Payment proof not found' })
+    return
+  }
+  try {
+    const { buffer, contentType } = await readPaymentProof(order.paymentProofFile)
+    res.setHeader('Content-Type', contentType)
+    res.send(buffer)
+  } catch {
+    res.status(404).json({ error: 'Payment proof file missing' })
+  }
 })
 
 app.post('/api/orders/cod', async (req, res) => {
@@ -564,8 +546,7 @@ app.post('/api/orders/cod', async (req, res) => {
     updatedAt: t,
   }
 
-  const orders = await readOrders()
-  await writeOrders([order, ...orders])
+  await insertOrder(order)
 
   const whatsapp = await notifyShopWhatsAppOrder(order)
 
@@ -573,7 +554,7 @@ app.post('/api/orders/cod', async (req, res) => {
 })
 
 app.get('/api/orders', async (_req, res) => {
-  const orders = await readOrders()
+  const orders = await listOrders()
   const visible = orders.filter((o) => o.status === 'paid' || o.status === 'cod' || o.status === 'upi')
   res.json({ orders: visible })
 })
@@ -590,17 +571,15 @@ app.post('/api/products', async (req, res) => {
     return
   }
 
-  const current = await readProducts()
   const t = now()
-  const next = {
-    id: id(),
-    ...input.data,
-    weightKg: input.data.weightKg ?? 0.5,
-    createdAt: t,
-    updatedAt: t,
+  const next = prepareProductPayload(input.data, { createdAt: t, updatedAt: t, id: id() })
+  try {
+    await insertProduct(next)
+    res.status(201).json({ product: next })
+  } catch (err) {
+    console.error('Insert product failed:', err)
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Could not save product' })
   }
-  await writeProducts([next, ...current])
-  res.status(201).json({ product: next })
 })
 
 app.patch('/api/products/:id', async (req, res) => {
@@ -611,49 +590,56 @@ app.patch('/api/products/:id', async (req, res) => {
   }
 
   const current = await readProducts()
-  const idx = current.findIndex((p) => p.id === req.params.id)
-  if (idx === -1) {
+  const existing = current.find((p) => p.id === req.params.id)
+  if (!existing) {
     res.status(404).json({ error: 'Not found' })
     return
   }
 
   const t = now()
-  const updated = { ...current[idx], ...patch.data, updatedAt: t }
-  const next = [...current.slice(0, idx), updated, ...current.slice(idx + 1)]
-  await writeProducts(next)
-  res.json({ product: updated })
+  const merged = { ...existing, ...patch.data, updatedAt: t }
+  const updated = prepareProductPayload(merged, {
+    createdAt: existing.createdAt,
+    updatedAt: t,
+    id: existing.id,
+  })
+  try {
+    await replaceProduct(updated)
+    res.json({ product: updated })
+  } catch (err) {
+    console.error('Update product failed:', err)
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Could not save product' })
+  }
 })
 
 app.delete('/api/products/:id', async (req, res) => {
-  const current = await readProducts()
-  const next = current.filter((p) => p.id !== req.params.id)
-  if (next.length === current.length) {
-    res.status(404).json({ error: 'Not found' })
-    return
+  try {
+    await deleteProduct(req.params.id)
+    res.json({ ok: true })
+  } catch (err) {
+    if (err instanceof Error && err.message === 'Product not found') {
+      res.status(404).json({ error: 'Not found' })
+      return
+    }
+    console.error('Delete product failed:', err)
+    res.status(500).json({ error: 'Could not delete product' })
   }
-  await writeProducts(next)
-  res.json({ ok: true })
 })
 
-// Serve the frontend (single deployment)
 if (!existsSync(FRONTEND_INDEX)) {
-  // eslint-disable-next-line no-console
   console.error(`Frontend build missing at ${FRONTEND_DIST_DIR}. Run: npm run build`)
 } else {
   app.use(express.static(FRONTEND_DIST_DIR))
   app.get('/', (_req, res) => {
     res.sendFile(FRONTEND_INDEX)
   })
-  // HashRouter + direct paths: always return index.html for non-API routes
   app.get(/^(?!\/api).*/, (_req, res) => {
     res.sendFile(FRONTEND_INDEX)
   })
 }
 
 app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
   console.log(`API listening on :${PORT}`)
-  // eslint-disable-next-line no-console
   console.log(`Serving frontend from ${FRONTEND_DIST_DIR}`)
+  console.log(`Data store: ${getStoreLabel()}`)
 })
-

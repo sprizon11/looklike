@@ -257,7 +257,7 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
                       if (!file) return
                       try {
                         setError('')
-                        const dataUrl = await compressImageFile(file, 900, 0.8)
+                        const dataUrl = await compressImageFile(file, 480, 0.65)
                         setPaymentProof(dataUrl)
                       } catch {
                         setError('Could not use that image. Try a clear screenshot (JPG/PNG).')

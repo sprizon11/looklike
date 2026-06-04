@@ -16,6 +16,7 @@ export type OrderItem = {
   price: number
   quantity: number
   size: string
+  color?: string
   image?: string
 }
 
@@ -32,6 +33,7 @@ export type AdminOrder = {
   paymentMethod?: 'online' | 'cod' | 'upi'
   upiReference?: string
   paymentProof?: string
+  paymentProofFile?: string
   createdAt: number
   updatedAt: number
 }
@@ -68,7 +70,12 @@ export function formatOrderDateTime(ts: number) {
 }
 
 export function orderItemsSummary(items: OrderItem[]) {
-  return items.map((i) => `${i.name} (${i.size}) x${i.quantity}`).join(', ')
+  return items
+    .map((i) => {
+      const label = i.color ? `${i.name} (${i.color}, ${i.size})` : `${i.name} (${i.size})`
+      return `${label} x${i.quantity}`
+    })
+    .join(', ')
 }
 
 export function orderStatusLabel(status: AdminOrder['status']) {

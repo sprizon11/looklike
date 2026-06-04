@@ -1,3 +1,5 @@
+import type { ProductColor } from '@/lib/product-colors'
+
 export type ProductCategory = 'Kurti' | 'Leggings' | 'Palazzo' | string
 
 export type Product = {
@@ -11,6 +13,7 @@ export type Product = {
   description?: string
   /** Weight per piece in kg (for delivery charge) */
   weightKg?: number
+  colors?: ProductColor[]
   createdAt: number
   updatedAt: number
 }

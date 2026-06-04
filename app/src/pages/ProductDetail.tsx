@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ChevronLeft, Check, ShoppingBag } from 'lucide-react'
 import { useProducts } from '@/hooks/use-products'
 import { addToCart } from '@/lib/cart-store'
 import { buildWhatsAppUrl } from '@/lib/shop-contact'
+import { normalizeProductColors, type ProductColor } from '@/lib/product-colors'
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
@@ -14,9 +15,24 @@ export default function ProductDetail() {
 
   const product = useMemo(() => products.find((p) => p.id === id), [products, id])
 
+  const colors = useMemo(
+    () => (product ? normalizeProductColors(product.colors, product.image) : []),
+    [product]
+  )
+
+  const [selectedColorId, setSelectedColorId] = useState('')
   const [selectedSize, setSelectedSize] = useState<string>('')
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
+
+  useEffect(() => {
+    if (colors.length > 0) setSelectedColorId(colors[0].id)
+  }, [product?.id, colors])
+
+  const selectedColor: ProductColor | undefined = useMemo(
+    () => colors.find((c) => c.id === selectedColorId) ?? colors[0],
+    [colors, selectedColorId]
+  )
 
   const sizes = useMemo(() => {
     const raw = product?.size?.trim()
@@ -27,7 +43,7 @@ export default function ProductDetail() {
       .filter(Boolean)
   }, [product])
 
-  const activeImage = product?.image || ''
+  const activeImage = selectedColor?.image || product?.image || ''
 
   if (!product) {
     return (
@@ -46,13 +62,14 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     const size = selectedSize || sizes[0]
+    const colorName = selectedColor?.name || ''
     addToCart({
       productId: product.id,
       name: product.name,
       price: product.price,
       image: activeImage,
       size,
-      color: '',
+      color: colorName,
       quantity,
       weightKg: product.weightKg ?? 0.5,
     })
@@ -62,9 +79,13 @@ export default function ProductDetail() {
 
   const handleWhatsAppOrder = () => {
     const size = selectedSize || sizes[0]
-    const message = `Hi! I'd like to order:\n${product.name}\nSize: ${size}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
+    const colorName = selectedColor?.name || ''
+    const colorLine = colorName ? `\nColour: ${colorName}` : ''
+    const message = `Hi! I'd like to order:\n${product.name}${colorLine}\nSize: ${size}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
     window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer')
   }
+
+  const showColorPicker = colors.length > 1 || (colors[0] && colors[0].name !== 'Default')
 
   return (
     <div className="min-h-screen bg-white">
@@ -78,16 +99,14 @@ export default function ProductDetail() {
         </button>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-14">
-          {/* Image */}
           <div className="bg-[#f7f7f7] overflow-hidden">
             <img
               src={activeImage}
-              alt={product.name}
+              alt={`${product.name} — ${selectedColor?.name || ''}`}
               className="w-full aspect-[3/4] object-cover"
             />
           </div>
 
-          {/* Details */}
           <div className="flex flex-col">
             <span className="font-body text-[12px] uppercase tracking-[0.12em] text-black/40">
               {product.category}
@@ -105,7 +124,37 @@ export default function ProductDetail() {
               </p>
             )}
 
-            {/* Sizes */}
+            {showColorPicker && (
+              <div className="mt-8">
+                <p className="font-body text-[14px] text-black">
+                  Colour: <span className="font-medium">{selectedColor?.name}</span>
+                </p>
+                <div className="mt-3 flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+                  {colors.map((c) => {
+                    const active = selectedColor?.id === c.id
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedColorId(c.id)}
+                        className={`shrink-0 w-[108px] text-left border-2 transition-colors ${
+                          active ? 'border-[#1a73e8]' : 'border-black/10 hover:border-black/25'
+                        }`}
+                      >
+                        <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
+                          <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="p-2 border-t border-black/[0.06]">
+                          <p className="font-body text-[12px] font-medium text-black truncate">{c.name}</p>
+                          <p className="font-body text-[12px] text-black mt-0.5">Rs. {product.price}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-8">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Select Size
@@ -130,7 +179,6 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Quantity */}
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Quantity
@@ -154,7 +202,6 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleAddToCart}

@@ -74,7 +74,9 @@ export default function Cart() {
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="font-body text-[14px] font-medium text-black">{i.name}</p>
-                          <p className="font-body text-[12px] text-black/50 mt-1">Size: {i.size}</p>
+                          <p className="font-body text-[12px] text-black/50 mt-1">
+                            {i.color ? `Colour: ${i.color} · ` : ''}Size: {i.size}
+                          </p>
                           <p className="font-body text-[12px] text-black/40 mt-0.5">
                             {(i.weightKg ?? 0.5) * i.quantity} kg total ({i.weightKg ?? 0.5} kg each)
                           </p>

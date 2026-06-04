@@ -1,4 +1,5 @@
 import type { Product } from '@/lib/products-store'
+import type { ProductColor } from '@/lib/product-colors'
 import { getApiBase, hasBackendApi } from '@/lib/api-base'
 
 export function hasApi() {
@@ -45,6 +46,7 @@ export async function apiAddProduct(input: {
   size?: string
   description?: string
   weightKg?: number
+  colors?: ProductColor[]
 }): Promise<Product> {
   const res = await apiFetch('/api/products', { method: 'POST', body: JSON.stringify(input) })
   const json = (await res.json()) as { product: Product }
@@ -62,6 +64,7 @@ export async function apiUpdateProduct(
     size: string
     description: string
     weightKg: number
+    colors: ProductColor[]
   }>
 ): Promise<Product> {
   const res = await apiFetch(`/api/products/${encodeURIComponent(id)}`, {

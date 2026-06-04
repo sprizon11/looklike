@@ -37,6 +37,12 @@ import {
   type AdminOrder,
 } from '@/lib/orders-api'
 import { compressImageFile } from '@/lib/compress-image'
+import {
+  normalizeProductColors,
+  newColorId,
+  orderPaymentProofSrc,
+  type ProductColor,
+} from '@/lib/product-colors'
 
 const ADMIN_PASSWORD = 'admin123'
 
@@ -65,6 +71,7 @@ export default function Admin() {
     description: '',
     weightKg: '0.5',
     image: '' as string,
+    colors: [] as ProductColor[],
   })
 
   const [featuredModalOpen, setFeaturedModalOpen] = useState(false)
@@ -186,6 +193,7 @@ export default function Admin() {
       description: '',
       weightKg: '0.5',
       image: '',
+      colors: [{ id: newColorId(), name: '', image: '' }],
     })
     setProductModalOpen(true)
   }
@@ -193,6 +201,7 @@ export default function Admin() {
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductError('')
+    const colors = normalizeProductColors(p.colors, p.image)
     setProductForm({
       name: p.name,
       category: p.category,
@@ -202,6 +211,7 @@ export default function Admin() {
       size: p.size || '',
       description: p.description || '',
       weightKg: String(p.weightKg ?? 0.5),
+      colors,
     })
     setProductModalOpen(true)
   }
@@ -280,10 +290,13 @@ export default function Admin() {
     const category = productForm.category.trim() || 'Other'
     const price = Number(productForm.price)
     const stock = Number(productForm.stock)
-    const image = productForm.image.trim()
     const size = productForm.size.trim()
     const description = productForm.description.trim()
     const weightKg = Number(productForm.weightKg)
+    const colors = productForm.colors
+      .map((c) => ({ ...c, name: c.name.trim(), image: c.image.trim() }))
+      .filter((c) => c.name && c.image)
+    const image = colors[0]?.image || productForm.image.trim()
 
     if (!name) {
       setProductError('Product name is required')
@@ -297,8 +310,8 @@ export default function Admin() {
       setProductError('Stock must be a valid number')
       return
     }
-    if (!image) {
-      setProductError('Please upload an image')
+    if (colors.length === 0) {
+      setProductError('Add at least one colour with name and photo')
       return
     }
     if (!Number.isFinite(weightKg) || weightKg <= 0) {
@@ -310,9 +323,19 @@ export default function Admin() {
     setProductSaving(true)
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, { name, category, price, stock, image, size, description, weightKg })
+        await updateProduct(editingProduct.id, {
+          name,
+          category,
+          price,
+          stock,
+          image,
+          size,
+          description,
+          weightKg,
+          colors,
+        })
       } else {
-        await addProduct({ name, category, price, stock, image, size, description, weightKg })
+        await addProduct({ name, category, price, stock, image, size, description, weightKg, colors })
       }
       closeProductModal()
     } catch (e) {
@@ -779,7 +802,7 @@ export default function Admin() {
                             <td className="px-6 py-4">
                               <div className="flex flex-col gap-1">
                                 {statusBadge(order.status)}
-                                {order.paymentProof && (
+                                {orderPaymentProofSrc(order) && (
                                   <span className="font-body text-[10px] uppercase tracking-[0.06em] text-green-700">
                                     Screenshot
                                   </span>
@@ -842,6 +865,7 @@ export default function Admin() {
                               <div>
                                 <p className="text-black font-medium">{item.name}</p>
                                 <p className="text-black/60 mt-0.5">
+                                  {item.color ? `${item.color} · ` : ''}
                                   Size {item.size} · Qty {item.quantity} · Rs. {item.price * item.quantity}
                                 </p>
                               </div>
@@ -876,17 +900,17 @@ export default function Admin() {
                         )}
                         <p className="mt-1 text-black font-medium">Total: Rs. {selectedOrder.amount}</p>
                       </div>
-                      {selectedOrder.paymentProof && (
+                      {orderPaymentProofSrc(selectedOrder) && (
                         <div className="md:col-span-2 space-y-2">
                           <p className="text-black/40 uppercase text-[11px] tracking-[0.08em]">Payment screenshot</p>
                           <a
-                            href={selectedOrder.paymentProof}
+                            href={orderPaymentProofSrc(selectedOrder)!}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-block"
                           >
                             <img
-                              src={selectedOrder.paymentProof}
+                              src={orderPaymentProofSrc(selectedOrder)!}
                               alt="UPI payment proof"
                               className="max-w-full max-h-[320px] border border-black/[0.08] object-contain bg-[#f7f7f7]"
                             />
@@ -1103,38 +1127,92 @@ export default function Admin() {
               </div>
 
               <div>
-                <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Image Upload</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="w-full mt-2 font-body text-[13px]"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    try {
-                      setProductError('')
-                      const dataUrl = await compressImageFile(file)
-                      setProductForm((s) => ({ ...s, image: dataUrl }))
-                    } catch {
-                      setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
+                <div className="flex items-center justify-between gap-4">
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                    Colours (each dress colour)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProductForm((s) => ({
+                        ...s,
+                        colors: [...s.colors, { id: newColorId(), name: '', image: '' }],
+                      }))
                     }
-                  }}
-                />
-                <div className="mt-3 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-black/[0.04] border border-black/[0.06] overflow-hidden">
-                    {productForm.image ? (
-                      <img
-                        src={productForm.image}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
+                    className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
+                  >
+                    + Add colour
+                  </button>
+                </div>
+                <p className="font-body text-[11px] text-black/35 mt-1">
+                  First colour is the shop thumbnail. Customers pick colour on the product page.
+                </p>
+                <div className="mt-3 space-y-4">
+                  {productForm.colors.map((color, idx) => (
+                    <div key={color.id} className="p-3 border border-black/10 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-body text-[11px] uppercase text-black/40">Colour {idx + 1}</span>
+                        {productForm.colors.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProductForm((s) => ({
+                                ...s,
+                                colors: s.colors.filter((c) => c.id !== color.id),
+                              }))
+                            }
+                            className="font-body text-[11px] text-red-600 hover:text-red-700"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        value={color.name}
+                        onChange={(e) =>
+                          setProductForm((s) => ({
+                            ...s,
+                            colors: s.colors.map((c) =>
+                              c.id === color.id ? { ...c, name: e.target.value } : c
+                            ),
+                          }))
+                        }
+                        className="w-full h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                        placeholder="e.g. Wine, Black, Mehandi"
                       />
-                    ) : (
-                      <div className="w-full h-full" />
-                    )}
-                  </div>
-                  <p className="font-body text-[12px] text-black/40">
-                    {productForm.image ? 'Image selected' : 'No image selected'}
-                  </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="w-full font-body text-[12px]"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          try {
+                            setProductError('')
+                            const dataUrl = await compressImageFile(file)
+                            setProductForm((s) => ({
+                              ...s,
+                              colors: s.colors.map((c) =>
+                                c.id === color.id ? { ...c, image: dataUrl } : c
+                              ),
+                              image: idx === 0 ? dataUrl : s.image || s.colors[0]?.image || dataUrl,
+                            }))
+                          } catch {
+                            setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
+                          }
+                        }}
+                      />
+                      {color.image ? (
+                        <img
+                          src={color.image}
+                          alt={color.name || 'Colour'}
+                          className="w-16 h-20 object-cover border border-black/[0.06]"
+                        />
+                      ) : (
+                        <p className="font-body text-[11px] text-black/35">Upload photo for this colour</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
