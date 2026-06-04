@@ -16,7 +16,18 @@ type Props = {
   open: boolean
   onClose: () => void
   items: CartItem[]
+  initialState?: string
   onSuccess: (message?: string) => void
+}
+
+const CART_STATE_KEY = 'looklike.cart.delivery-state'
+
+function defaultDeliveryState(initialState?: string) {
+  if (initialState?.trim()) return initialState.trim()
+  if (typeof window !== 'undefined') {
+    return window.sessionStorage.getItem(CART_STATE_KEY) || 'Tamil Nadu'
+  }
+  return 'Tamil Nadu'
 }
 
 const emptyForm: CheckoutCustomer = {
@@ -25,11 +36,11 @@ const emptyForm: CheckoutCustomer = {
   email: '',
   address: '',
   city: '',
-  state: '',
+  state: 'Tamil Nadu',
   pincode: '',
 }
 
-export default function CheckoutModal({ open, onClose, items, onSuccess }: Props) {
+export default function CheckoutModal({ open, onClose, items, initialState, onSuccess }: Props) {
   const [form, setForm] = useState<CheckoutCustomer>(emptyForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -60,8 +71,12 @@ export default function CheckoutModal({ open, onClose, items, onSuccess }: Props
       setError('')
       setCopied(false)
       setQrSaved(false)
+      setForm(emptyForm)
+    } else {
+      const state = defaultDeliveryState(initialState)
+      setForm((f) => ({ ...f, state }))
     }
-  }, [open])
+  }, [open, initialState])
 
   if (!open) return null
 
@@ -176,7 +191,7 @@ export default function CheckoutModal({ open, onClose, items, onSuccess }: Props
     }
   }
 
-  const payDisabled = loading || !form.state.trim() || !upiEnabled
+  const payDisabled = loading || !upiEnabled
 
   return (
     <div className="fixed inset-0 z-[200] overflow-y-auto bg-white">
@@ -393,11 +408,16 @@ export default function CheckoutModal({ open, onClose, items, onSuccess }: Props
                     <label className="sr-only">State</label>
                     <select
                       value={form.state}
-                      onChange={(e) => setForm((s) => ({ ...s, state: e.target.value }))}
+                      onChange={(e) => {
+                        const state = e.target.value
+                        setForm((s) => ({ ...s, state }))
+                        if (typeof window !== 'undefined') {
+                          window.sessionStorage.setItem(CART_STATE_KEY, state)
+                        }
+                      }}
                       className="w-full h-[44px] px-3 border border-black/10 font-body text-[14px] bg-white focus:outline-none focus:border-black/30 text-black"
                       autoComplete="address-level1"
                     >
-                      <option value="">State / Union territory</option>
                       {INDIAN_STATES.map((st) => (
                         <option key={st} value={st}>
                           {st}
@@ -418,11 +438,7 @@ export default function CheckoutModal({ open, onClose, items, onSuccess }: Props
                     onClick={startUpiPayment}
                     className="w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors disabled:opacity-60"
                   >
-                    {loading
-                      ? 'Please wait…'
-                      : form.state.trim()
-                        ? `Pay Rs. ${totals.total.toLocaleString('en-IN')} with UPI`
-                        : 'Select state to continue'}
+                    {loading ? 'Please wait…' : `Pay Rs. ${totals.total.toLocaleString('en-IN')} with UPI`}
                   </button>
                 ) : (
                   <p className="font-body text-[12px] text-amber-700 bg-amber-50 border border-amber-100 p-3">

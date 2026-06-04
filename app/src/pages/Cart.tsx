@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import CheckoutModal from '@/components/CheckoutModal'
 import { clearCart, readCart, removeCartItem, subscribeCart, updateCartItem } from '@/lib/cart-store'
-import { calcCartTotals, formatWeightKg } from '@/lib/delivery'
+import { calcCartTotals, formatDeliveryNote, formatWeightKg, isTamilNadu } from '@/lib/delivery'
+import { INDIAN_STATES } from '@/lib/indian-states'
+
+const CART_STATE_KEY = 'looklike.cart.delivery-state'
 
 export default function Cart() {
   const navigate = useNavigate()
@@ -11,13 +14,24 @@ export default function Cart() {
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [deliveryState, setDeliveryState] = useState(() => {
+    if (typeof window === 'undefined') return 'Tamil Nadu'
+    return window.sessionStorage.getItem(CART_STATE_KEY) || 'Tamil Nadu'
+  })
 
   useEffect(() => {
     setItems(readCart())
     return subscribeCart(() => setItems(readCart()))
   }, [])
 
-  const totals = useMemo(() => calcCartTotals(items), [items])
+  const totals = useMemo(() => calcCartTotals(items, deliveryState), [items, deliveryState])
+
+  const setStateAndSave = (state: string) => {
+    setDeliveryState(state)
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(CART_STATE_KEY, state)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -130,29 +144,59 @@ export default function Cart() {
 
             <div className="border border-black/[0.06] p-6 h-fit">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Summary</p>
+
+              <div className="mt-4">
+                <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                  Deliver to (state)
+                </label>
+                <select
+                  value={deliveryState}
+                  onChange={(e) => setStateAndSave(e.target.value)}
+                  className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] bg-white focus:outline-none focus:border-black/30"
+                >
+                  {INDIAN_STATES.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+                <p className="font-body text-[11px] text-black/35 mt-1">
+                  Tamil Nadu Rs. 60 flat · Other states Rs. 80/kg
+                </p>
+              </div>
+
               <div className="mt-4 flex items-center justify-between">
                 <p className="font-body text-[14px] text-black/60">Subtotal</p>
                 <p className="font-body text-[14px] text-black">Rs. {totals.subtotal}</p>
               </div>
-              <div className="mt-2 flex items-center justify-between">
-                <p className="font-body text-[14px] text-black/60">
-                  Shipping ({formatWeightKg(totals.totalWeightKg)})
+              <div className="mt-2 flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-body text-[14px] text-black/60">
+                    Shipping ({formatWeightKg(totals.totalWeightKg)})
+                  </p>
+                  <p className="font-body text-[11px] text-black/35 mt-0.5">
+                    {formatDeliveryNote(deliveryState, totals.billedKg)}
+                  </p>
+                </div>
+                <p className="font-body text-[14px] text-black shrink-0">
+                  Rs. {totals.deliveryCharge ?? 0}
                 </p>
-                <p className="font-body text-[14px] text-black/50">At checkout</p>
               </div>
-              <p className="font-body text-[11px] text-black/35 mt-1">
-                All India · Tamil Nadu Rs. 60 flat · Other states Rs. 80/kg
-              </p>
+              {!isTamilNadu(deliveryState) && totals.billedKg > 0 && (
+                <p className="font-body text-[11px] text-black/35">
+                  Rs. 80 × {totals.billedKg} kg
+                </p>
+              )}
               <div className="mt-3 pt-3 border-t border-black/[0.06] flex items-center justify-between">
-                <p className="font-body text-[14px] font-medium text-black">Items total</p>
-                <p className="font-body text-[16px] font-medium text-black">Rs. {totals.subtotal}</p>
+                <p className="font-body text-[14px] font-medium text-black">Total</p>
+                <p className="font-body text-[16px] font-medium text-black">Rs. {totals.total}</p>
               </div>
 
               <button
                 onClick={() => setCheckoutOpen(true)}
                 className="mt-6 w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
               >
-                Order Now
+                Order Now — Rs. {totals.total}
               </button>
               <p className="mt-3 font-body text-[12px] text-black/40">
                 Pay with UPI — copy UPI ID, pay, and upload payment screenshot.
@@ -166,6 +210,7 @@ export default function Cart() {
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
         items={items}
+        initialState={deliveryState}
         onSuccess={(message) => {
           setSuccessMessage(message || '')
           setOrderSuccess(true)
