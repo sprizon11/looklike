@@ -40,9 +40,16 @@ import {
 } from '@/lib/orders-api'
 import { compressImageFile } from '@/lib/compress-image'
 import {
+  LEGGINGS_COLOR_CATALOG,
+  LEGGINGS_MARKED_AVAILABLE,
+  leggingsColorLabel,
+} from '@/lib/leggings-color-catalog'
+import {
+  emptyColorEntry,
   normalizeProductColors,
-  newColorId,
   orderPaymentProofSrc,
+  padColorImageSlots,
+  serializeColorForSave,
   type ProductColor,
 } from '@/lib/product-colors'
 import { printAdminOrder } from '@/lib/print-order'
@@ -215,7 +222,7 @@ export default function Admin() {
       description: '',
       weightKg: '0.5',
       image: '',
-      colors: [{ id: newColorId(), name: '', image: '' }],
+      colors: [emptyColorEntry()],
     })
     setProductModalOpen(true)
   }
@@ -223,7 +230,10 @@ export default function Admin() {
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductError('')
-    const colors = normalizeProductColors(p.colors, p.image)
+    const colors = normalizeProductColors(p.colors, p.image).map((c) => ({
+      ...c,
+      images: padColorImageSlots(c.images, c.image),
+    }))
     setProductForm({
       name: p.name,
       category: p.category,
@@ -316,8 +326,8 @@ export default function Admin() {
     const description = productForm.description.trim()
     const weightKg = Number(productForm.weightKg)
     const colors = productForm.colors
-      .map((c) => ({ ...c, name: c.name.trim(), image: c.image.trim() }))
-      .filter((c) => c.name && c.image)
+      .map((c) => serializeColorForSave(c))
+      .filter((c) => c.name && c.images && c.images.length > 0)
     const image = colors[0]?.image || productForm.image.trim()
 
     if (!name) {
@@ -333,7 +343,7 @@ export default function Admin() {
       return
     }
     if (colors.length === 0) {
-      setProductError('Add at least one colour with name and photo')
+      setProductError('Add at least one colour with name and at least one photo')
       return
     }
     if (!Number.isFinite(weightKg) || weightKg <= 0) {
@@ -1197,92 +1207,172 @@ export default function Admin() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
-                    Colours (each dress colour)
+                    Colours (up to 3 photos each)
                   </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setProductForm((s) => ({
-                        ...s,
-                        colors: [...s.colors, { id: newColorId(), name: '', image: '' }],
-                      }))
-                    }
-                    className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
-                  >
-                    + Add colour
-                  </button>
-                </div>
-                <p className="font-body text-[11px] text-black/35 mt-1">
-                  First colour is the shop thumbnail. Customers pick colour on the product page.
-                </p>
-                <div className="mt-3 space-y-4">
-                  {productForm.colors.map((color, idx) => (
-                    <div key={color.id} className="p-3 border border-black/10 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-body text-[11px] uppercase text-black/40">Colour {idx + 1}</span>
-                        {productForm.colors.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setProductForm((s) => ({
-                                ...s,
-                                colors: s.colors.filter((c) => c.id !== color.id),
-                              }))
+                  <div className="flex flex-wrap gap-2">
+                    {productForm.category.toLowerCase().includes('legging') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const existing = new Map(
+                            productForm.colors.map((c) => [c.name.toLowerCase(), c])
+                          )
+                          const colors = LEGGINGS_COLOR_CATALOG.map((opt) => {
+                            const label = leggingsColorLabel(opt)
+                            const prev = existing.get(label.toLowerCase())
+                            if (prev) {
+                              return {
+                                ...prev,
+                                images: padColorImageSlots(prev.images, prev.image),
+                              }
                             }
-                            className="font-body text-[11px] text-red-600 hover:text-red-700"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        value={color.name}
-                        onChange={(e) =>
+                            return emptyColorEntry(label)
+                          })
                           setProductForm((s) => ({
                             ...s,
-                            colors: s.colors.map((c) =>
-                              c.id === color.id ? { ...c, name: e.target.value } : c
-                            ),
+                            category: 'Leggings',
+                            colors,
                           }))
-                        }
-                        className="w-full h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                        placeholder="e.g. Wine, Black, Mehandi"
-                      />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="w-full font-body text-[12px]"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          try {
-                            setProductError('')
-                            const dataUrl = await compressImageFile(file)
+                          setProductError('')
+                        }}
+                        className="font-body text-[11px] uppercase tracking-[0.06em] text-gold-dark hover:text-black border border-gold/40 px-2 py-1"
+                      >
+                        Load all leggings colours (48)
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductForm((s) => ({
+                          ...s,
+                          colors: [...s.colors, emptyColorEntry()],
+                        }))
+                      }
+                      className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
+                    >
+                      + Add colour
+                    </button>
+                  </div>
+                </div>
+                <p className="font-body text-[11px] text-black/35 mt-1">
+                  First colour is the shop thumbnail. Upload 1–3 photos per colour — customers see them as a
+                  slideshow (auto + manual). For leggings, use &ldquo;Load all leggings colours&rdquo; then add
+                  photos (marked colours CL 25, 29, 32, 45, 47 are often in stock).
+                </p>
+                <div className="mt-3 space-y-4 max-h-[420px] overflow-y-auto pr-1">
+                  {productForm.colors.map((color, idx) => {
+                    const slots = padColorImageSlots(color.images, color.image)
+                    const marked = [...LEGGINGS_MARKED_AVAILABLE].some((code) =>
+                      color.name.startsWith(code)
+                    )
+                    return (
+                      <div
+                        key={color.id}
+                        className={`p-3 border space-y-2 ${
+                          marked ? 'border-gold/40 bg-[#faf8f2]' : 'border-black/10'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-body text-[11px] uppercase text-black/40">
+                            Colour {idx + 1}
+                            {marked ? (
+                              <span className="ml-2 text-gold-dark normal-case">· often available</span>
+                            ) : null}
+                          </span>
+                          {productForm.colors.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProductForm((s) => ({
+                                  ...s,
+                                  colors: s.colors.filter((c) => c.id !== color.id),
+                                }))
+                              }
+                              className="font-body text-[11px] text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          value={color.name}
+                          onChange={(e) =>
                             setProductForm((s) => ({
                               ...s,
                               colors: s.colors.map((c) =>
-                                c.id === color.id ? { ...c, image: dataUrl } : c
+                                c.id === color.id ? { ...c, name: e.target.value } : c
                               ),
-                              image: idx === 0 ? dataUrl : s.image || s.colors[0]?.image || dataUrl,
                             }))
-                          } catch {
-                            setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
                           }
-                        }}
-                      />
-                      {color.image ? (
-                        <img
-                          src={color.image}
-                          alt={color.name || 'Colour'}
-                          className="w-16 h-20 object-cover border border-black/[0.06]"
+                          className="w-full h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                          placeholder="e.g. CL 1. Black, Wine, Mehandi"
                         />
-                      ) : (
-                        <p className="font-body text-[11px] text-black/35">Upload photo for this colour</p>
-                      )}
-                    </div>
-                  ))}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {slots.map((slotUrl, slotIdx) => (
+                            <div key={slotIdx} className="space-y-1">
+                              <p className="font-body text-[10px] uppercase text-black/40">
+                                Photo {slotIdx + 1}
+                              </p>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="w-full font-body text-[11px]"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0]
+                                  if (!file) return
+                                  try {
+                                    setProductError('')
+                                    const dataUrl = await compressImageFile(file)
+                                    setProductForm((s) => {
+                                      const nextColors = s.colors.map((c) => {
+                                        if (c.id !== color.id) return c
+                                        const imgs = padColorImageSlots(c.images, c.image)
+                                        imgs[slotIdx] = dataUrl
+                                        const filled = imgs.filter(Boolean)
+                                        return {
+                                          ...c,
+                                          images: imgs,
+                                          image: filled[0] || dataUrl,
+                                        }
+                                      })
+                                      const firstImg =
+                                        nextColors[0]?.image || nextColors[0]?.images?.find(Boolean) || dataUrl
+                                      return {
+                                        ...s,
+                                        colors: nextColors,
+                                        image: idx === 0 && slotIdx === 0 ? dataUrl : s.image || firstImg,
+                                      }
+                                    })
+                                  } catch {
+                                    setProductError(
+                                      'Could not use that image. Try a JPG or PNG under 5 MB.'
+                                    )
+                                  }
+                                  e.target.value = ''
+                                }}
+                              />
+                              {slotUrl ? (
+                                <img
+                                  src={slotUrl}
+                                  alt={`${color.name || 'Colour'} ${slotIdx + 1}`}
+                                  className="w-full h-20 object-cover border border-black/[0.06]"
+                                />
+                              ) : (
+                                <p className="font-body text-[10px] text-black/30">Optional</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {slots.filter(Boolean).length === 0 && (
+                          <p className="font-body text-[11px] text-amber-700">
+                            Add at least one photo for this colour.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 

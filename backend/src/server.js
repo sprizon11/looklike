@@ -56,12 +56,34 @@ const razorpay =
 const FRONTEND_DIST_DIR = resolveFromRoot(process.env.FRONTEND_DIST_DIR, 'app/dist')
 const FRONTEND_INDEX = path.join(FRONTEND_DIST_DIR, 'index.html')
 
-const ProductColorSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1),
-  image: z.string().min(1),
-  stock: z.number().int().nonnegative().optional(),
-})
+const ProductColorSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().min(1),
+    image: z.string().optional(),
+    images: z.array(z.string().min(1)).max(3).optional(),
+    stock: z.number().int().nonnegative().optional(),
+  })
+  .transform((c) => normalizeColorRecord(c))
+
+function normalizeColorRecord(c) {
+  const images =
+    Array.isArray(c.images) && c.images.length > 0
+      ? c.images.map((s) => s.trim()).filter(Boolean).slice(0, 3)
+      : c.image?.trim()
+        ? [c.image.trim()]
+        : []
+  if (images.length === 0) {
+    throw new Error('Each colour needs at least one image')
+  }
+  return {
+    id: c.id,
+    name: c.name,
+    images,
+    image: images[0],
+    ...(c.stock !== undefined ? { stock: c.stock } : {}),
+  }
+}
 
 const ProductCreateSchema = z.object({
   name: z.string().min(1),
@@ -220,8 +242,15 @@ function defaultProducts() {
 function normalizeProduct(raw) {
   const colors =
     Array.isArray(raw.colors) && raw.colors.length > 0
-      ? raw.colors
-      : [{ id: 'color-default', name: 'Default', image: raw.image }]
+      ? raw.colors.map((c) => {
+          try {
+            return normalizeColorRecord(c)
+          } catch {
+            const img = c.image?.trim() || raw.image
+            return { id: c.id || id('color'), name: c.name || 'Default', images: [img], image: img }
+          }
+        })
+      : [{ id: 'color-default', name: 'Default', images: [raw.image], image: raw.image }]
   return {
     ...raw,
     colors,
@@ -233,8 +262,8 @@ function normalizeProduct(raw) {
 function prepareProductPayload(data, timestamps) {
   const colors =
     Array.isArray(data.colors) && data.colors.length > 0
-      ? data.colors
-      : [{ id: id('color'), name: 'Default', image: data.image }]
+      ? data.colors.map((c) => normalizeColorRecord(c))
+      : [{ id: id('color'), name: 'Default', images: [data.image], image: data.image }]
   return {
     ...data,
     colors,

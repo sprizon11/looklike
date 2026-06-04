@@ -4,8 +4,14 @@ import { ChevronLeft, Check, ShoppingBag } from 'lucide-react'
 import { useProducts } from '@/hooks/use-products'
 import { addToCart } from '@/lib/cart-store'
 import { buildWhatsAppUrl } from '@/lib/shop-contact'
-import { normalizeProductColors, type ProductColor } from '@/lib/product-colors'
+import {
+  colorImages,
+  normalizeProductColors,
+  primaryColorImage,
+  type ProductColor,
+} from '@/lib/product-colors'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
+import ProductImageCarousel from '@/components/ProductImageCarousel'
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
@@ -44,7 +50,11 @@ export default function ProductDetail() {
       .filter(Boolean)
   }, [product])
 
-  const activeImage = selectedColor?.image || product?.image || ''
+  const galleryImages = useMemo(
+    () => (selectedColor ? colorImages(selectedColor) : product?.image ? [product.image] : []),
+    [selectedColor, product?.image]
+  )
+  const activeImage = galleryImages[0] || product?.image || ''
 
   if (!product) {
     return (
@@ -100,13 +110,10 @@ export default function ProductDetail() {
         </button>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-14">
-          <div className="bg-[#f7f7f7] overflow-hidden">
-            <img
-              src={activeImage}
-              alt={`${product.name} — ${selectedColor?.name || ''}`}
-              className="w-full aspect-[3/4] object-cover"
-            />
-          </div>
+          <ProductImageCarousel
+            images={galleryImages}
+            alt={`${product.name} — ${selectedColor?.name || ''}`}
+          />
 
           <div className="flex flex-col">
             <span className="font-body text-[12px] uppercase tracking-[0.12em] text-black/40">
@@ -143,7 +150,11 @@ export default function ProductDetail() {
                         }`}
                       >
                         <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
-                          <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                          <img
+                            src={primaryColorImage(c)}
+                            alt={c.name}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         <div className="p-2 border-t border-black/[0.06]">
                           <p className="font-body text-[12px] font-medium text-black truncate">{c.name}</p>

@@ -16,12 +16,34 @@ function resolveFromRoot(envPath, fallbackRelative) {
 
 const DATA_DIR = resolveFromRoot(process.env.DATA_DIR, 'backend/data')
 
-const ProductColorSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1),
-  image: z.string().min(1),
-  stock: z.number().int().nonnegative().optional(),
-})
+function normalizeColorRecord(c) {
+  const images =
+    Array.isArray(c.images) && c.images.length > 0
+      ? c.images.map((s) => String(s).trim()).filter(Boolean).slice(0, 3)
+      : c.image?.trim()
+        ? [String(c.image).trim()]
+        : []
+  if (images.length === 0) {
+    throw new Error('Each colour needs at least one image')
+  }
+  return {
+    id: c.id,
+    name: c.name,
+    images,
+    image: images[0],
+    ...(c.stock !== undefined ? { stock: c.stock } : {}),
+  }
+}
+
+const ProductColorSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().min(1),
+    image: z.string().optional(),
+    images: z.array(z.string().min(1)).max(3).optional(),
+    stock: z.number().int().nonnegative().optional(),
+  })
+  .transform((c) => normalizeColorRecord(c))
 
 export const ProductSchema = z.object({
   id: z.string(),
