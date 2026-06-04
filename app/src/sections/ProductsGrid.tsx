@@ -14,13 +14,6 @@ type Props = {
 
 type PriceRange = 'all' | 'under-300' | '300-499' | '500-799' | '800-plus'
 
-const CATEGORY_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'kurti', label: 'Kurtis' },
-  { value: 'leggings', label: 'Leggings' },
-  { value: 'palazzo', label: 'Palazzos' },
-]
-
 const PRICE_OPTIONS: { value: PriceRange; label: string }[] = [
   { value: 'all', label: 'All prices' },
   { value: 'under-300', label: 'Under Rs. 300' },
@@ -31,11 +24,21 @@ const PRICE_OPTIONS: { value: PriceRange; label: string }[] = [
 
 function matchesCategory(category: string, filter: string) {
   if (filter === 'all') return true
-  const c = category.toLowerCase()
-  if (filter === 'kurti') return c.includes('kurti')
-  if (filter === 'leggings') return c.includes('legging')
-  if (filter === 'palazzo') return c.includes('palazzo')
-  return true
+  return category.trim().toLowerCase() === filter.trim().toLowerCase()
+}
+
+function buildCategoryFilterOptions(products: { category: string }[]) {
+  const opts: { value: string; label: string }[] = [{ value: 'all', label: 'All' }]
+  const seen = new Set<string>()
+  for (const p of products) {
+    const label = p.category?.trim()
+    if (!label) continue
+    const key = label.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    opts.push({ value: label, label })
+  }
+  return opts
 }
 
 function matchesPrice(price: number, range: PriceRange) {
@@ -114,6 +117,8 @@ export default function ProductsGrid({
     [products]
   )
 
+  const categoryOptions = useMemo(() => buildCategoryFilterOptions(sorted), [sorted])
+
   const searchTerm = (localSearch || urlQuery).trim().toLowerCase()
 
   const filtered = useMemo(() => {
@@ -149,7 +154,7 @@ export default function ProductsGrid({
               />
 
               <div className="flex flex-wrap gap-2">
-                {CATEGORY_OPTIONS.map((opt) => (
+                {categoryOptions.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
