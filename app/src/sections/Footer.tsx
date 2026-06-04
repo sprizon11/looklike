@@ -53,11 +53,23 @@ export default function Footer() {
               <span className="mt-1.5 h-[2px] w-7 bg-gold-gradient" />
             </h4>
             <ul className="space-y-2">
-              {['About Us', 'Shipping Info', 'Return Policy'].map((label) => (
-                <li key={label}>
-                  <span className="font-body text-[14px] font-normal text-black/50">{label}</span>
+              {[
+                { label: 'About Us', href: '#about' },
+                { label: 'Shipping Info', href: '#shipping' },
+              ].map((link) => (
+                <li key={link.label}>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection(link.href)}
+                    className="font-body text-[14px] font-normal text-black/50 hover:text-gold-dark transition-colors duration-200"
+                  >
+                    {link.label}
+                  </button>
                 </li>
               ))}
+              <li>
+                <span className="font-body text-[14px] font-normal text-black/50">Return Policy</span>
+              </li>
               <li>
                 <button
                   onClick={() => scrollToSection('#footer')}

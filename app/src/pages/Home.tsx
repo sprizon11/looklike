@@ -11,6 +11,7 @@ import AboutSection from '@/sections/AboutSection'
 import WhyChooseUs from '@/sections/WhyChooseUs'
 import Testimonials from '@/sections/Testimonials'
 import ShopCTA from '@/sections/ShopCTA'
+import ShippingInfo from '@/sections/ShippingInfo'
 import Footer from '@/sections/Footer'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -52,6 +53,7 @@ export default function Home() {
       <WhyChooseUs />
       <Testimonials />
       <ShopCTA />
+      <ShippingInfo />
       <Footer />
     </div>
   )
