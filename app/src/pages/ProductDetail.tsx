@@ -6,12 +6,14 @@ import { addToCart } from '@/lib/cart-store'
 import { buildWhatsAppUrl } from '@/lib/shop-contact'
 import {
   colorImages,
-  normalizeProductColors,
+  getCustomerColorOptions,
+  isLeggingsProduct,
   primaryColorImage,
   type ProductColor,
 } from '@/lib/product-colors'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
+import LeggingsColorStrip from '@/components/LeggingsColorStrip'
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
@@ -22,19 +24,35 @@ export default function ProductDetail() {
 
   const product = useMemo(() => products.find((p) => p.id === id), [products, id])
 
+  const isLeggings = product ? isLeggingsProduct(product.category) : false
+
   const colors = useMemo(
-    () => (product ? normalizeProductColors(product.colors, product.image) : []),
+    () => (product ? getCustomerColorOptions(product) : []),
     [product]
   )
 
   const [selectedColorId, setSelectedColorId] = useState('')
+  const [pieceColors, setPieceColors] = useState<string[]>([''])
   const [selectedSize, setSelectedSize] = useState<string>('')
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
+  const [pickError, setPickError] = useState('')
+
+  const defaultColorName = colors[0]?.name || ''
 
   useEffect(() => {
     if (colors.length > 0) setSelectedColorId(colors[0].id)
   }, [product?.id, colors])
+
+  useEffect(() => {
+    if (!defaultColorName) return
+    setPieceColors((prev) => {
+      const next = [...prev]
+      while (next.length < quantity) next.push(defaultColorName)
+      while (next.length > quantity) next.pop()
+      return next.map((c) => c || defaultColorName)
+    })
+  }, [quantity, defaultColorName])
 
   const selectedColor: ProductColor | undefined = useMemo(
     () => colors.find((c) => c.id === selectedColorId) ?? colors[0],
@@ -50,10 +68,12 @@ export default function ProductDetail() {
       .filter(Boolean)
   }, [product])
 
-  const galleryImages = useMemo(
-    () => (selectedColor ? colorImages(selectedColor) : product?.image ? [product.image] : []),
-    [selectedColor, product?.image]
-  )
+  const galleryImages = useMemo(() => {
+    if (!product) return []
+    if (isLeggings) return product.image ? [product.image] : []
+    return selectedColor ? colorImages(selectedColor) : product.image ? [product.image] : []
+  }, [isLeggings, selectedColor, product])
+
   const activeImage = galleryImages[0] || product?.image || ''
 
   if (!product) {
@@ -73,30 +93,68 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     const size = selectedSize || sizes[0]
-    const colorName = selectedColor?.name || ''
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      image: activeImage,
-      size,
-      color: colorName,
-      quantity,
-      weightKg: product.weightKg ?? 0.5,
-    })
+    setPickError('')
+
+    if (isLeggings) {
+      const missing = pieceColors.findIndex((c) => !c?.trim())
+      if (missing !== -1) {
+        setPickError(`Please choose a colour for legging ${missing + 1}.`)
+        return
+      }
+      for (let i = 0; i < quantity; i++) {
+        addToCart({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          image: activeImage,
+          size,
+          color: pieceColors[i],
+          quantity: 1,
+          weightKg: product.weightKg ?? 0.5,
+        })
+      }
+    } else {
+      const colorName = selectedColor?.name || ''
+      addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        image: activeImage,
+        size,
+        color: colorName,
+        quantity,
+        weightKg: product.weightKg ?? 0.5,
+      })
+    }
+
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2200)
   }
 
   const handleWhatsAppOrder = () => {
     const size = selectedSize || sizes[0]
+    setPickError('')
+
+    if (isLeggings) {
+      const missing = pieceColors.findIndex((c) => !c?.trim())
+      if (missing !== -1) {
+        setPickError(`Please choose a colour for legging ${missing + 1}.`)
+        return
+      }
+      const colourLines = pieceColors.map((c, i) => `Legging ${i + 1}: ${c}`).join('\n')
+      const message = `Hi! I'd like to order:\n${product.name}\n${colourLines}\nSize: ${size}\nPieces: ${quantity}\nPrice each: Rs. ${product.price}`
+      window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer')
+      return
+    }
+
     const colorName = selectedColor?.name || ''
     const colorLine = colorName ? `\nColour: ${colorName}` : ''
     const message = `Hi! I'd like to order:\n${product.name}${colorLine}\nSize: ${size}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
     window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer')
   }
 
-  const showColorPicker = colors.length > 1 || (colors[0] && colors[0].name !== 'Default')
+  const showDressColorPicker =
+    !isLeggings && (colors.length > 1 || (colors[0] && colors[0].name !== 'Default'))
 
   return (
     <div className="min-h-screen bg-white">
@@ -110,10 +168,7 @@ export default function ProductDetail() {
         </button>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-14">
-          <ProductImageCarousel
-            images={galleryImages}
-            alt={`${product.name} — ${selectedColor?.name || ''}`}
-          />
+          <ProductImageCarousel images={galleryImages} alt={product.name} />
 
           <div className="flex flex-col">
             <span className="font-body text-[12px] uppercase tracking-[0.12em] text-black/40">
@@ -132,7 +187,7 @@ export default function ProductDetail() {
               </p>
             )}
 
-            {showColorPicker && (
+            {showDressColorPicker && (
               <div className="mt-8">
                 <p className="font-body text-[14px] text-black">
                   Colour: <span className="font-medium">{selectedColor?.name}</span>
@@ -158,7 +213,9 @@ export default function ProductDetail() {
                         </div>
                         <div className="p-2 border-t border-black/[0.06]">
                           <p className="font-body text-[12px] font-medium text-black truncate">{c.name}</p>
-                          <p className="font-body text-[12px] font-medium text-gold-dark mt-0.5">Rs. {product.price}</p>
+                          <p className="font-body text-[12px] font-medium text-gold-dark mt-0.5">
+                            Rs. {product.price}
+                          </p>
                         </div>
                       </button>
                     )
@@ -218,6 +275,50 @@ export default function ProductDetail() {
                 </button>
               </div>
             </div>
+
+            {isLeggings && colors.length > 0 && (
+              <div className="mt-8 space-y-5">
+                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
+                  Choose colour{quantity > 1 ? ' (each piece)' : ''} — scroll sideways →
+                </p>
+                {quantity === 1 ? (
+                  <LeggingsColorStrip
+                    colors={colors}
+                    selectedName={pieceColors[0] || ''}
+                    onSelect={(name) => setPieceColors([name])}
+                    label={
+                      pieceColors[0]
+                        ? `Selected colour: ${pieceColors[0]}`
+                        : 'Tap a colour swatch below'
+                    }
+                    shape="circle"
+                  />
+                ) : (
+                  Array.from({ length: quantity }, (_, i) => (
+                    <LeggingsColorStrip
+                      key={i}
+                      colors={colors}
+                      selectedName={pieceColors[i] || ''}
+                      onSelect={(name) =>
+                        setPieceColors((prev) => {
+                          const next = [...prev]
+                          next[i] = name
+                          return next
+                        })
+                      }
+                      label={
+                        pieceColors[i]
+                          ? `Legging ${i + 1}: ${pieceColors[i]}`
+                          : `Legging ${i + 1} — tap a colour`
+                      }
+                      shape="circle"
+                    />
+                  ))
+                )}
+              </div>
+            )}
+
+            {pickError && <p className="mt-4 font-body text-[13px] text-red-600">{pickError}</p>}
 
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <button

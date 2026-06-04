@@ -1,4 +1,26 @@
+import { LEGGINGS_COLOR_CATALOG, leggingsColorLabel } from '@/lib/leggings-color-catalog'
+import { leggingsSwatchHex } from '@/lib/leggings-swatch-colors'
+
 export const MAX_COLOR_IMAGES = 3
+export const LEGGINGS_COLOR_COUNT = LEGGINGS_COLOR_CATALOG.length
+
+export function isLeggingsProduct(category?: string) {
+  return (category || '').toLowerCase().includes('legging')
+}
+
+export function buildLeggingsProductColors(mainImage: string): ProductColor[] {
+  const img = mainImage.trim()
+  return LEGGINGS_COLOR_CATALOG.map((opt) => {
+    const name = leggingsColorLabel(opt)
+    return {
+      id: `leggings-${opt.code.replace(/\s+/g, '-').toLowerCase()}`,
+      name,
+      image: img,
+      images: img ? [img] : [],
+      swatchHex: leggingsSwatchHex(name),
+    }
+  })
+}
 
 export type ProductColor = {
   id: string
@@ -7,6 +29,10 @@ export type ProductColor = {
   image?: string
   /** Up to 3 photos per colour */
   images?: string[]
+  /** Small fabric swatch image (optional; leggings) */
+  swatch?: string
+  /** Hex fill when no swatch image (leggings picker) */
+  swatchHex?: string
   stock?: number
 }
 
@@ -29,6 +55,45 @@ export function colorImages(color: ProductColor): string[] {
 
 export function primaryColorImage(color: ProductColor): string {
   return colorImages(color)[0] || ''
+}
+
+/** Colour list for product page — leggings always show all 48 names with the main product photo. */
+export function getCustomerColorOptions(product: {
+  category: string
+  image: string
+  colors?: ProductColor[]
+}): ProductColor[] {
+  const mainImage = product.image?.trim() || ''
+  if (isLeggingsProduct(product.category)) {
+    const saved = normalizeLeggingsColorNames(product.colors, mainImage)
+    if (saved.length >= LEGGINGS_COLOR_COUNT - 2) return saved
+    return buildLeggingsProductColors(mainImage)
+  }
+  return normalizeProductColors(product.colors, mainImage)
+}
+
+/** Keep colour names for leggings even when photos are only on the main product image. */
+export function normalizeLeggingsColorNames(
+  colors: ProductColor[] | undefined,
+  mainImage: string
+): ProductColor[] {
+  const img = mainImage.trim()
+  if (!Array.isArray(colors) || colors.length === 0) return []
+  const out: ProductColor[] = []
+  for (const c of colors) {
+    if (!c.name?.trim()) continue
+    const images = colorImages(c)
+    const useImg = images[0] || img
+    out.push({
+      ...c,
+      name: c.name.trim(),
+      image: useImg,
+      images: useImg ? [useImg] : [],
+      swatchHex: c.swatchHex || leggingsSwatchHex(c.name),
+      ...(c.swatch ? { swatch: c.swatch } : {}),
+    })
+  }
+  return out
 }
 
 export function normalizeProductColors(

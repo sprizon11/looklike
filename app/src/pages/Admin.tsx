@@ -40,12 +40,9 @@ import {
 } from '@/lib/orders-api'
 import { compressImageFile } from '@/lib/compress-image'
 import {
-  LEGGINGS_COLOR_CATALOG,
-  LEGGINGS_MARKED_AVAILABLE,
-  leggingsColorLabel,
-} from '@/lib/leggings-color-catalog'
-import {
+  buildLeggingsProductColors,
   emptyColorEntry,
+  isLeggingsProduct,
   normalizeProductColors,
   orderPaymentProofSrc,
   padColorImageSlots,
@@ -230,10 +227,13 @@ export default function Admin() {
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductError('')
-    const colors = normalizeProductColors(p.colors, p.image).map((c) => ({
-      ...c,
-      images: padColorImageSlots(c.images, c.image),
-    }))
+    const leggings = isLeggingsProduct(p.category)
+    const colors = leggings
+      ? [emptyColorEntry()]
+      : normalizeProductColors(p.colors, p.image).map((c) => ({
+          ...c,
+          images: padColorImageSlots(c.images, c.image),
+        }))
     setProductForm({
       name: p.name,
       category: p.category,
@@ -325,10 +325,22 @@ export default function Admin() {
     const size = productForm.size.trim()
     const description = productForm.description.trim()
     const weightKg = Number(productForm.weightKg)
-    const colors = productForm.colors
-      .map((c) => serializeColorForSave(c))
-      .filter((c) => c.name && c.images && c.images.length > 0)
-    const image = colors[0]?.image || productForm.image.trim()
+    const isLeggings = isLeggingsProduct(category)
+    const mainImage = productForm.image.trim()
+
+    let colors: ProductColor[]
+    if (isLeggings) {
+      if (!mainImage) {
+        setProductError('Upload one main leggings photo — all 48 colours use this image on the website.')
+        return
+      }
+      colors = buildLeggingsProductColors(mainImage)
+    } else {
+      colors = productForm.colors
+        .map((c) => serializeColorForSave(c))
+        .filter((c) => c.name && c.images && c.images.length > 0)
+    }
+    const image = mainImage || colors[0]?.image || ''
 
     if (!name) {
       setProductError('Product name is required')
@@ -342,7 +354,7 @@ export default function Admin() {
       setProductError('Stock must be a valid number')
       return
     }
-    if (colors.length === 0) {
+    if (!isLeggings && colors.length === 0) {
       setProductError('Add at least one colour with name and at least one photo')
       return
     }
@@ -1207,79 +1219,82 @@ export default function Admin() {
               </div>
 
               <div>
+                <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                  {isLeggingsProduct(productForm.category)
+                    ? 'Main leggings photo (one image for all 48 colours)'
+                    : 'Main product photo'}
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full mt-1 font-body text-[12px]"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    try {
+                      setProductError('')
+                      const dataUrl = await compressImageFile(file)
+                      setProductForm((s) => ({ ...s, image: dataUrl }))
+                    } catch {
+                      setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
+                    }
+                    e.target.value = ''
+                  }}
+                />
+                {productForm.image ? (
+                  <img
+                    src={productForm.image}
+                    alt="Product"
+                    className="mt-2 w-24 h-28 object-cover border border-black/[0.06]"
+                  />
+                ) : (
+                  <p className="font-body text-[11px] text-black/35 mt-1">
+                    {isLeggingsProduct(productForm.category)
+                      ? 'Customers see this photo + all 48 colour names to pick from.'
+                      : 'Used as shop thumbnail if you do not upload per-colour photos.'}
+                  </p>
+                )}
+              </div>
+
+              {isLeggingsProduct(productForm.category) ? (
+                <div className="p-3 border border-gold/30 bg-[#faf8f2]">
+                  <p className="font-body text-[13px] font-medium text-black">Leggings colour chart</p>
+                  <p className="font-body text-[12px] text-black/60 mt-1 leading-relaxed">
+                    All <strong>48 colours</strong> (CL 1–CL 48) are added automatically when you save. You only
+                    upload <strong>one photo</strong> above. On the website, customers scroll the colour row,
+                    pick a colour, and if they order 2+ pieces they choose a colour for each legging.
+                  </p>
+                </div>
+              ) : (
+              <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
                     Colours (up to 3 photos each)
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {productForm.category.toLowerCase().includes('legging') && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const existing = new Map(
-                            productForm.colors.map((c) => [c.name.toLowerCase(), c])
-                          )
-                          const colors = LEGGINGS_COLOR_CATALOG.map((opt) => {
-                            const label = leggingsColorLabel(opt)
-                            const prev = existing.get(label.toLowerCase())
-                            if (prev) {
-                              return {
-                                ...prev,
-                                images: padColorImageSlots(prev.images, prev.image),
-                              }
-                            }
-                            return emptyColorEntry(label)
-                          })
-                          setProductForm((s) => ({
-                            ...s,
-                            category: 'Leggings',
-                            colors,
-                          }))
-                          setProductError('')
-                        }}
-                        className="font-body text-[11px] uppercase tracking-[0.06em] text-gold-dark hover:text-black border border-gold/40 px-2 py-1"
-                      >
-                        Load all leggings colours (48)
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProductForm((s) => ({
-                          ...s,
-                          colors: [...s.colors, emptyColorEntry()],
-                        }))
-                      }
-                      className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
-                    >
-                      + Add colour
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProductForm((s) => ({
+                        ...s,
+                        colors: [...s.colors, emptyColorEntry()],
+                      }))
+                    }
+                    className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
+                  >
+                    + Add colour
+                  </button>
                 </div>
                 <p className="font-body text-[11px] text-black/35 mt-1">
-                  First colour is the shop thumbnail. Upload 1–3 photos per colour — customers see them as a
-                  slideshow (auto + manual). For leggings, use &ldquo;Load all leggings colours&rdquo; then add
-                  photos (marked colours CL 25, 29, 32, 45, 47 are often in stock).
+                  Upload 1–3 photos per colour — customers see a slideshow (auto + manual).
                 </p>
                 <div className="mt-3 space-y-4 max-h-[420px] overflow-y-auto pr-1">
                   {productForm.colors.map((color, idx) => {
                     const slots = padColorImageSlots(color.images, color.image)
-                    const marked = [...LEGGINGS_MARKED_AVAILABLE].some((code) =>
-                      color.name.startsWith(code)
-                    )
                     return (
-                      <div
-                        key={color.id}
-                        className={`p-3 border space-y-2 ${
-                          marked ? 'border-gold/40 bg-[#faf8f2]' : 'border-black/10'
-                        }`}
-                      >
+                      <div key={color.id} className="p-3 border border-black/10 space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-body text-[11px] uppercase text-black/40">
                             Colour {idx + 1}
-                            {marked ? (
-                              <span className="ml-2 text-gold-dark normal-case">· often available</span>
-                            ) : null}
                           </span>
                           {productForm.colors.length > 1 && (
                             <button
@@ -1375,6 +1390,7 @@ export default function Admin() {
                   })}
                 </div>
               </div>
+              )}
 
               {productError && <p className="font-body text-[13px] text-red-500">{productError}</p>}
             </div>

@@ -55,15 +55,6 @@ export const LEGGINGS_COLOR_CATALOG: LeggingsColorOption[] = [
   { code: 'CL 48', name: 'Onion' },
 ]
 
-/** Colours often marked as in-stock on the supplier chart (upload photos for these first). */
-export const LEGGINGS_MARKED_AVAILABLE = new Set([
-  'CL 25',
-  'CL 29',
-  'CL 32',
-  'CL 45',
-  'CL 47',
-])
-
 export function leggingsColorLabel(opt: LeggingsColorOption) {
   return `${opt.code}. ${opt.name}`
 }
