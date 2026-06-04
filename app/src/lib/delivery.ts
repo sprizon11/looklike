@@ -6,12 +6,24 @@ export type WeightedCartLine = {
 
 const DEFAULT_ITEM_WEIGHT_KG = 0.5
 
-/** 1 kg → Rs.60, 2 kg → Rs.100, then +Rs.50 per extra kg (3→150, 4→200, …). */
-export function deliveryChargeFromWeightKg(totalWeightKg: number) {
+export function isTamilNadu(state: string | undefined) {
+  if (!state?.trim()) return false
+  const n = state.trim().toLowerCase()
+  return n === 'tamil nadu' || n === 'tn'
+}
+
+/** Tamil Nadu: flat Rs. 60. All other states: Rs. 80 per kg (rounded up). */
+export function deliveryChargeForState(totalWeightKg: number, state: string | undefined) {
   const billedKg = Math.ceil(Math.max(0, totalWeightKg))
   if (billedKg <= 0) return 0
-  if (billedKg <= 1) return 60
-  return 100 + (billedKg - 2) * 50
+  if (isTamilNadu(state)) return 60
+  return 80 * billedKg
+}
+
+export function formatDeliveryNote(state: string | undefined, billedKg: number) {
+  if (isTamilNadu(state)) return 'Flat Rs. 60 — Tamil Nadu'
+  if (state?.trim()) return `Rs. 80/kg × ${billedKg} kg billed — ${state}`
+  return 'All India · Tamil Nadu Rs. 60 · Other states Rs. 80/kg'
 }
 
 export function cartSubtotal(items: { price: number; quantity: number }[]) {
@@ -22,12 +34,24 @@ export function cartTotalWeightKg(items: WeightedCartLine[]) {
   return items.reduce((sum, i) => sum + (i.weightKg ?? DEFAULT_ITEM_WEIGHT_KG) * i.quantity, 0)
 }
 
-export function calcCartTotals(items: Array<WeightedCartLine & { price: number }>) {
+export function calcCartTotals(
+  items: Array<WeightedCartLine & { price: number }>,
+  state?: string
+) {
   const subtotal = cartSubtotal(items)
   const totalWeightKg = cartTotalWeightKg(items)
-  const deliveryCharge = deliveryChargeFromWeightKg(totalWeightKg)
-  const total = subtotal + deliveryCharge
-  return { subtotal, deliveryCharge, totalWeightKg, total, billedKg: Math.ceil(totalWeightKg) }
+  const billedKg = Math.ceil(totalWeightKg)
+  const hasState = Boolean(state?.trim())
+  const deliveryCharge = hasState ? deliveryChargeForState(totalWeightKg, state) : null
+  const total = subtotal + (deliveryCharge ?? 0)
+  return {
+    subtotal,
+    deliveryCharge,
+    totalWeightKg,
+    billedKg,
+    total,
+    hasState,
+  }
 }
 
 export function formatWeightKg(kg: number) {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Copy, Download, Upload, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { CartItem } from '@/lib/cart-store'
@@ -8,15 +8,14 @@ import { clearCart } from '@/lib/cart-store'
 import { compressImageFile } from '@/lib/compress-image'
 import { downloadQrPng } from '@/lib/download-qr'
 import { tryOwnerWhatsAppFallback } from '@/lib/shop-contact'
-import type { calcCartTotals } from '@/lib/delivery'
-
-type CartTotals = ReturnType<typeof calcCartTotals>
+import { calcCartTotals } from '@/lib/delivery'
+import { INDIAN_STATES } from '@/lib/indian-states'
+import CheckoutOrderSummary from '@/components/CheckoutOrderSummary'
 
 type Props = {
   open: boolean
   onClose: () => void
   items: CartItem[]
-  totals: CartTotals
   onSuccess: (message?: string) => void
 }
 
@@ -30,7 +29,7 @@ const emptyForm: CheckoutCustomer = {
   pincode: '',
 }
 
-export default function CheckoutModal({ open, onClose, items, totals, onSuccess }: Props) {
+export default function CheckoutModal({ open, onClose, items, onSuccess }: Props) {
   const [form, setForm] = useState<CheckoutCustomer>(emptyForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -42,6 +41,8 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
   const [copied, setCopied] = useState(false)
   const [qrSaved, setQrSaved] = useState(false)
   const qrWrapRef = useRef<HTMLDivElement>(null)
+
+  const totals = useMemo(() => calcCartTotals(items, form.state), [items, form.state])
 
   useEffect(() => {
     if (!open) return
@@ -70,7 +71,7 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
     const address = form.address.trim()
     const city = form.city.trim()
     const pincode = form.pincode.trim()
-    const state = form.state?.trim() || ''
+    const state = form.state.trim()
     const email = form.email?.trim() || ''
 
     if (!name) {
@@ -89,14 +90,17 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
       setError('City is required')
       return null
     }
+    if (!state) {
+      setError('Please select your state')
+      return null
+    }
     if (pincode.length < 4) {
       setError('Enter a valid pincode')
       return null
     }
 
-    const customer: CheckoutCustomer = { name, phone, address, city, pincode }
+    const customer: CheckoutCustomer = { name, phone, address, city, state, pincode }
     if (email) customer.email = email
-    if (state) customer.state = state
     return customer
   }
 
@@ -172,35 +176,53 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
     }
   }
 
+  const payDisabled = loading || !form.state.trim() || !upiEnabled
+
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center px-0 sm:px-6">
-      <button className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close checkout" />
-      <div className="relative w-full sm:max-w-[520px] bg-white border border-black/[0.12] max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="font-display text-[22px] font-normal text-black">
-                {step === 'upi' ? 'Pay with UPI' : 'Checkout'}
-              </h2>
-              <p className="font-body text-[12px] text-black/40 mt-1">
-                Subtotal Rs. {totals.subtotal} + Delivery Rs. {totals.deliveryCharge} = Rs.{' '}
-                {totals.total.toLocaleString('en-IN')}
-              </p>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-black/[0.04] transition-colors" aria-label="Close">
+    <div className="fixed inset-0 z-[200] overflow-y-auto bg-white">
+      <button
+        className="fixed inset-0 bg-black/40 lg:hidden"
+        onClick={onClose}
+        aria-label="Close checkout"
+      />
+
+      <div className="relative min-h-full flex flex-col lg:flex-row">
+        {/* Order summary — top on mobile, right on desktop */}
+        <aside className="relative z-10 bg-[#fafafa] border-b lg:border-b-0 lg:border-l border-black/[0.08] px-5 py-6 sm:px-8 lg:px-10 lg:py-10 lg:w-[42%] lg:max-w-[480px] lg:order-2">
+          <div className="hidden lg:flex items-center justify-between mb-8">
+            <span className="font-display text-[22px] text-black">Look Like</span>
+            <button onClick={onClose} className="p-2 hover:bg-black/[0.04]" aria-label="Close">
               <X size={18} className="text-black/50" />
             </button>
           </div>
+          <CheckoutOrderSummary items={items} state={form.state} compactHeader />
+        </aside>
+
+        {/* Form / payment */}
+        <main className="relative z-10 flex-1 bg-white px-5 py-6 sm:px-8 lg:px-12 lg:py-10 lg:order-1">
+          <div className="flex items-center justify-between gap-4 lg:max-w-[520px]">
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 -ml-2 hover:bg-black/[0.04]"
+              aria-label="Close"
+            >
+              <X size={20} className="text-black/50" />
+            </button>
+            <h2 className="font-display text-[26px] sm:text-[30px] font-normal text-black flex-1 text-center lg:text-left">
+              {step === 'upi' ? 'Payment' : 'Checkout'}
+            </h2>
+            <div className="w-10 lg:hidden" />
+          </div>
 
           {step === 'upi' && upiOrder ? (
-            <div className="mt-6 space-y-5">
+            <div className="mt-8 lg:max-w-[520px] space-y-5">
               <div className="border border-black/[0.08] p-5">
                 <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40">Amount to pay</p>
                 <p className="font-display text-[32px] text-black mt-1">
                   Rs. {upiOrder.amount.toLocaleString('en-IN')}
                 </p>
                 <p className="font-body text-[12px] text-black/45 mt-2">
-                  Pay this exact amount to the UPI ID below, then upload your payment screenshot.
+                  Delivery to {form.state} included. Upload payment screenshot after paying.
                 </p>
               </div>
 
@@ -218,21 +240,13 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
                   </button>
                 </div>
                 <p className="font-body text-[12px] text-black/40 mt-2">Payee: {upiOrder.payeeName}</p>
-                <p className="font-body text-[12px] text-black/50 mt-3">
-                  Open GPay / PhonePe / Paytm → Pay to UPI ID → enter amount → complete payment.
-                </p>
               </div>
 
               <div className="border border-black/[0.08] p-4 text-center">
-                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40 mb-3">
-                  Scan QR in GPay
-                </p>
+                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/40 mb-3">Scan QR in GPay</p>
                 <div ref={qrWrapRef} className="inline-flex p-2 bg-white border border-black/[0.08]">
                   <QRCodeSVG value={upiOrder.upiUri} size={200} level="M" includeMargin />
                 </div>
-                <p className="font-body text-[12px] text-black/50 mt-3">
-                  Save the QR, open GPay → Scan → choose this image from your gallery.
-                </p>
                 <button
                   type="button"
                   onClick={saveQrImage}
@@ -282,14 +296,14 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
                 <input
                   value={upiReference}
                   onChange={(e) => setUpiReference(e.target.value)}
-                  className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                  className="w-full mt-1 h-[44px] px-3 border border-black/10 font-body text-[14px] focus:outline-none focus:border-black/30"
                   placeholder="e.g. 123456789012"
                 />
               </div>
 
               {error && <p className="font-body text-[13px] text-red-500">{error}</p>}
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 pb-8">
                 <button
                   type="button"
                   disabled={loading || !paymentProof}
@@ -314,95 +328,101 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
               </div>
             </div>
           ) : (
-            <>
-              <div className="mt-6 space-y-4">
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Full Name</label>
+            <div className="mt-8 lg:max-w-[520px]">
+              <section className="mb-8">
+                <h3 className="font-display text-[22px] text-black">Contact</h3>
+                <div className="mt-4 space-y-3">
                   <input
                     value={form.name}
                     onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="Your name"
+                    className="w-full h-[44px] px-3 border border-black/10 font-body text-[14px] focus:outline-none focus:border-black/30"
+                    placeholder="Full name"
+                    autoComplete="name"
                   />
-                </div>
-
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Phone Number</label>
                   <input
                     value={form.phone}
                     onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
                     inputMode="tel"
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="+91 98765 43210"
+                    className="w-full h-[44px] px-3 border border-black/10 font-body text-[14px] focus:outline-none focus:border-black/30"
+                    placeholder="Phone number"
+                    autoComplete="tel"
                   />
-                </div>
-
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Email (optional)</label>
                   <input
                     value={form.email || ''}
                     onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
                     type="email"
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="you@email.com"
+                    className="w-full h-[44px] px-3 border border-black/10 font-body text-[14px] focus:outline-none focus:border-black/30"
+                    placeholder="Email (optional)"
+                    autoComplete="email"
                   />
                 </div>
+              </section>
 
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Delivery Address</label>
+              <section>
+                <h3 className="font-display text-[22px] text-black">Delivery</h3>
+                <p className="font-body text-[12px] text-black/45 mt-1">
+                  We deliver all over India. Tamil Nadu Rs. 60 · Other states Rs. 80 per kg.
+                </p>
+                <div className="mt-4 space-y-3">
                   <textarea
                     value={form.address}
                     onChange={(e) => setForm((s) => ({ ...s, address: e.target.value }))}
                     rows={3}
-                    className="w-full mt-1 px-3 py-2 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30 resize-none"
+                    className="w-full px-3 py-2.5 border border-black/10 font-body text-[14px] focus:outline-none focus:border-black/30 resize-none"
                     placeholder="House no, street, area"
+                    autoComplete="street-address"
                   />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">City</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input
                       value={form.city}
                       onChange={(e) => setForm((s) => ({ ...s, city: e.target.value }))}
-                      className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                      placeholder="Tirupur"
+                      className="w-full h-[44px] px-3 border border-black/10 font-body text-[14px] focus:outline-none focus:border-black/30"
+                      placeholder="City"
+                      autoComplete="address-level2"
+                    />
+                    <input
+                      value={form.pincode}
+                      onChange={(e) => setForm((s) => ({ ...s, pincode: e.target.value }))}
+                      inputMode="numeric"
+                      className="w-full h-[44px] px-3 border border-black/10 font-body text-[14px] focus:outline-none focus:border-black/30"
+                      placeholder="PIN code"
+                      autoComplete="postal-code"
                     />
                   </div>
                   <div>
-                    <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">State</label>
-                    <input
-                      value={form.state || ''}
+                    <label className="sr-only">State</label>
+                    <select
+                      value={form.state}
                       onChange={(e) => setForm((s) => ({ ...s, state: e.target.value }))}
-                      className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                      placeholder="Tamil Nadu"
-                    />
+                      className="w-full h-[44px] px-3 border border-black/10 font-body text-[14px] bg-white focus:outline-none focus:border-black/30 text-black"
+                      autoComplete="address-level1"
+                    >
+                      <option value="">State / Union territory</option>
+                      {INDIAN_STATES.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
+              </section>
 
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Pincode</label>
-                  <input
-                    value={form.pincode}
-                    onChange={(e) => setForm((s) => ({ ...s, pincode: e.target.value }))}
-                    inputMode="numeric"
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="641601"
-                  />
-                </div>
+              {error && <p className="mt-4 font-body text-[13px] text-red-500">{error}</p>}
 
-                {error && <p className="font-body text-[13px] text-red-500">{error}</p>}
-              </div>
-
-              <div className="mt-6 flex flex-col gap-3">
+              <div className="mt-8 pb-10">
                 {upiEnabled ? (
                   <button
                     type="button"
-                    disabled={loading}
+                    disabled={payDisabled}
                     onClick={startUpiPayment}
                     className="w-full h-[48px] bg-black text-white font-body text-[14px] font-medium uppercase tracking-[0.06em] hover:bg-black/90 transition-colors disabled:opacity-60"
                   >
-                    {loading ? 'Please wait…' : `Continue — Pay Rs. ${totals.total.toLocaleString('en-IN')} with UPI`}
+                    {loading
+                      ? 'Please wait…'
+                      : form.state.trim()
+                        ? `Pay Rs. ${totals.total.toLocaleString('en-IN')} with UPI`
+                        : 'Select state to continue'}
                   </button>
                 ) : (
                   <p className="font-body text-[12px] text-amber-700 bg-amber-50 border border-amber-100 p-3">
@@ -410,9 +430,9 @@ export default function CheckoutModal({ open, onClose, items, totals, onSuccess 
                   </p>
                 )}
               </div>
-            </>
+            </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   )

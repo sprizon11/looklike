@@ -93,7 +93,7 @@ const CustomerSchema = z.object({
   email: z.string().optional(),
   address: z.string().min(3),
   city: z.string().min(1),
-  state: z.string().optional(),
+  state: z.string().min(1),
   pincode: z.string().min(4),
 })
 
@@ -253,8 +253,8 @@ async function readProducts() {
   return list.map(normalizeProduct)
 }
 
-function calcTotal(items) {
-  return calcOrderTotals(items).amount
+function calcTotal(items, state) {
+  return calcOrderTotals(items, state).amount
 }
 
 function buildUpiPayUri({ upiId, payeeName, amount, note }, { includeNote = true } = {}) {
@@ -296,8 +296,8 @@ app.post('/api/payments/create-order', async (req, res) => {
     return
   }
 
-  const amount = calcTotal(input.data.items)
-  if (amount <= 0) {
+  const totals = calcOrderTotals(input.data.items, input.data.customer.state)
+  if (totals.amount <= 0) {
     res.status(400).json({ error: 'Invalid order amount' })
     return
   }
@@ -311,7 +311,7 @@ app.post('/api/payments/create-order', async (req, res) => {
 
   try {
     const rzOrder = await razorpay.orders.create({
-      amount: Math.round(amount * 100),
+      amount: Math.round(totals.amount * 100),
       currency: 'INR',
       receipt: orderId,
       notes: {
@@ -324,7 +324,10 @@ app.post('/api/payments/create-order', async (req, res) => {
       id: orderId,
       customer,
       items: input.data.items,
-      amount,
+      amount: totals.amount,
+      subtotal: totals.subtotal,
+      deliveryCharge: totals.deliveryCharge,
+      totalWeightKg: totals.totalWeightKg,
       currency: 'INR',
       status: 'pending',
       paymentMethod: 'online',
@@ -337,7 +340,7 @@ app.post('/api/payments/create-order', async (req, res) => {
 
     res.status(201).json({
       orderId,
-      amount,
+      amount: totals.amount,
       currency: 'INR',
       razorpayOrderId: rzOrder.id,
       keyId: RAZORPAY_KEY_ID,
@@ -402,7 +405,7 @@ app.post('/api/orders/upi', async (req, res) => {
     return
   }
 
-  const totals = calcOrderTotals(input.data.items)
+  const totals = calcOrderTotals(input.data.items, input.data.customer.state)
   if (totals.amount <= 0) {
     res.status(400).json({ error: 'Invalid order amount' })
     return
@@ -521,8 +524,8 @@ app.post('/api/orders/cod', async (req, res) => {
     return
   }
 
-  const amount = calcTotal(input.data.items)
-  if (amount <= 0) {
+  const totals = calcOrderTotals(input.data.items, input.data.customer.state)
+  if (totals.amount <= 0) {
     res.status(400).json({ error: 'Invalid order amount' })
     return
   }
@@ -538,7 +541,10 @@ app.post('/api/orders/cod', async (req, res) => {
     id: orderId,
     customer,
     items: input.data.items,
-    amount,
+    subtotal: totals.subtotal,
+    deliveryCharge: totals.deliveryCharge,
+    totalWeightKg: totals.totalWeightKg,
+    amount: totals.amount,
     currency: 'INR',
     status: 'cod',
     paymentMethod: 'cod',

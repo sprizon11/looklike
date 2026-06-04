@@ -8,7 +8,7 @@ export type CheckoutCustomer = {
   email?: string
   address: string
   city: string
-  state?: string
+  state: string
   pincode: string
 }
 
@@ -70,6 +70,7 @@ function mapCartItems(items: CartItem[]) {
     price: i.price,
     quantity: i.quantity,
     size: i.size,
+    color: i.color,
     image: i.image,
     weightKg: i.weightKg,
   }))

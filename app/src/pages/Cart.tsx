@@ -136,16 +136,16 @@ export default function Cart() {
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <p className="font-body text-[14px] text-black/60">
-                  Delivery ({formatWeightKg(totals.totalWeightKg)})
+                  Shipping ({formatWeightKg(totals.totalWeightKg)})
                 </p>
-                <p className="font-body text-[14px] text-black">Rs. {totals.deliveryCharge}</p>
+                <p className="font-body text-[14px] text-black/50">At checkout</p>
               </div>
               <p className="font-body text-[11px] text-black/35 mt-1">
-                Rs. 60 for 1 kg · Rs. 100 for 2 kg · +Rs. 50 per extra kg
+                All India · Tamil Nadu Rs. 60 flat · Other states Rs. 80/kg
               </p>
               <div className="mt-3 pt-3 border-t border-black/[0.06] flex items-center justify-between">
-                <p className="font-body text-[14px] font-medium text-black">Total</p>
-                <p className="font-body text-[16px] font-medium text-black">Rs. {totals.total}</p>
+                <p className="font-body text-[14px] font-medium text-black">Items total</p>
+                <p className="font-body text-[16px] font-medium text-black">Rs. {totals.subtotal}</p>
               </div>
 
               <button
@@ -166,7 +166,6 @@ export default function Cart() {
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
         items={items}
-        totals={totals}
         onSuccess={(message) => {
           setSuccessMessage(message || '')
           setOrderSuccess(true)
