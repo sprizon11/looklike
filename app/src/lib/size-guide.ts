@@ -4,11 +4,7 @@ export type SizeGuideType = 'bottom' | 'kurti'
 
 export type BottomSizeGuideRow = {
   size: string
-  brandSize?: string
-  inSize?: string
-  waist: string
   hip: string
-  inseam: string
   length: string
 }
 
@@ -48,7 +44,7 @@ export function emptySizeGuide(type: SizeGuideType): SizeGuide {
   if (type === 'kurti') {
     return { type: 'kurti', rows: [], note: '* All measurements are in inches.' }
   }
-  return { type: 'bottom', rows: [], note: '' }
+  return { type: 'bottom', rows: [], note: '* All measurements are in inches.' }
 }
 
 export function defaultSizeGuideForCategory(category: string): SizeGuide | undefined {
@@ -57,14 +53,10 @@ export function defaultSizeGuideForCategory(category: string): SizeGuide | undef
   return emptySizeGuide(type)
 }
 
-function trimRow(row: BottomSizeGuideRow): BottomSizeGuideRow {
+function trimBottomRow(row: BottomSizeGuideRow): BottomSizeGuideRow {
   return {
     size: row.size.trim(),
-    brandSize: row.brandSize?.trim() || undefined,
-    inSize: row.inSize?.trim() || undefined,
-    waist: row.waist.trim(),
     hip: row.hip.trim(),
-    inseam: row.inseam.trim(),
     length: row.length.trim(),
   }
 }
@@ -75,22 +67,6 @@ function trimKurtiRow(row: KurtiSizeGuideRow): KurtiSizeGuideRow {
     bust: row.bust.trim(),
     length: row.length.trim(),
   }
-}
-
-export function bottomRowHasData(row: BottomSizeGuideRow): boolean {
-  return Boolean(
-    row.size ||
-      row.brandSize ||
-      row.inSize ||
-      row.waist ||
-      row.hip ||
-      row.inseam ||
-      row.length
-  )
-}
-
-export function kurtiRowHasData(row: KurtiSizeGuideRow): boolean {
-  return Boolean(row.size || row.bust || row.length)
 }
 
 export function normalizeSizeGuide(
@@ -116,44 +92,26 @@ export function normalizeSizeGuide(
 
   const bottomInput = input as Extract<SizeGuide, { type: 'bottom' }>
   const rows = bottomInput.rows
-    .map(trimRow)
-    .filter((r) => r.size && (r.waist || r.hip || r.inseam || r.length))
+    .map(trimBottomRow)
+    .filter((r) => r.size && (r.hip || r.length))
   if (rows.length === 0) return undefined
   return {
     type: 'bottom',
     rows,
-    note: input.note?.trim() || undefined,
+    note: input.note?.trim() || '* All measurements are in inches.',
   }
 }
 
 export function hasSizeGuide(guide: SizeGuide | undefined | null): boolean {
   if (!guide) return false
-  if (guide.type === 'kurti') return guide.rows.length > 0
   return guide.rows.length > 0
-}
-
-export function formatGuideMeasure(value: string, unit: 'in' | 'cm'): string {
-  const trimmed = value.trim()
-  if (!trimmed) return '—'
-  const n = Number(trimmed)
-  if (!Number.isFinite(n)) return trimmed
-  if (unit === 'in') return String(n)
-  return (n * 2.54).toFixed(1)
 }
 
 export function bottomRowsFromSizeLabels(labels: string[]): BottomSizeGuideRow[] {
   return labels
     .map((s) => s.trim())
     .filter(Boolean)
-    .map((size) => ({
-      size,
-      brandSize: '',
-      inSize: '',
-      waist: '',
-      hip: '',
-      inseam: '',
-      length: '',
-    }))
+    .map((size) => ({ size, hip: '', length: '' }))
 }
 
 export function kurtiRowsFromSizeLabels(labels: string[]): KurtiSizeGuideRow[] {

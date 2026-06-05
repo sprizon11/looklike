@@ -125,67 +125,62 @@ export default function AdminSizeGuideEditor({ category, sizeLabels, guide, onCh
         </button>
       </div>
       <p className="font-body text-[11px] text-black/40">
-        Enter measurements in inches per size (waist, hip, inseam, length). Customers can switch to cm.
+        Add hip and length in inches for each size — shown to customers under Select size.
       </p>
-      <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-        {rows.map((row, idx) => (
-          <div key={idx} className="p-2 border border-black/10 space-y-2">
-            <div className="flex items-center justify-between gap-2">
+      <div className="overflow-x-auto">
+        <div className="min-w-[520px] space-y-2">
+          <div className="grid grid-cols-[100px_1fr_1fr_48px] gap-3 px-2">
+            <span className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">Size</span>
+            <span className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">Hip (inch)</span>
+            <span className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">Length (inch)</span>
+            <span />
+          </div>
+          {rows.map((row, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-[100px_1fr_1fr_48px] gap-3 items-center p-2 border border-black/10 bg-white"
+            >
               <input
                 value={row.size}
                 onChange={(e) => updateBottomRow(rows, idx, { size: e.target.value }, onChange, current)}
-                placeholder="Size label (e.g. M)"
-                className="h-[34px] px-2 border border-black/10 font-body text-[12px] w-24"
+                placeholder="e.g. M"
+                className="h-[38px] px-3 border border-black/10 font-body text-[13px]"
+              />
+              <input
+                value={row.hip}
+                onChange={(e) => updateBottomRow(rows, idx, { hip: e.target.value }, onChange, current)}
+                placeholder="e.g. 28"
+                className="h-[38px] px-3 border border-black/10 font-body text-[13px]"
+              />
+              <input
+                value={row.length}
+                onChange={(e) => updateBottomRow(rows, idx, { length: e.target.value }, onChange, current)}
+                placeholder="e.g. 34"
+                className="h-[38px] px-3 border border-black/10 font-body text-[13px]"
               />
               <button
                 type="button"
                 onClick={() => removeBottomRow(rows, idx, onChange, current)}
-                className="font-body text-[11px] text-red-600"
+                className="font-body text-[12px] text-red-600 hover:text-red-700"
               >
-                Remove
+                ×
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {(
-                [
-                  ['brandSize', 'Brand size'],
-                  ['inSize', 'IN size'],
-                  ['waist', 'Waist (in)'],
-                  ['hip', 'Hip (in)'],
-                  ['inseam', 'Inseam (in)'],
-                  ['length', 'Length (in)'],
-                ] as const
-              ).map(([key, label]) => (
-                <div key={key}>
-                  <label className="font-body text-[10px] text-black/40">{label}</label>
-                  <input
-                    value={row[key]}
-                    onChange={(e) =>
-                      updateBottomRow(rows, idx, { [key]: e.target.value }, onChange, current)
-                    }
-                    className="w-full h-[32px] px-2 border border-black/10 font-body text-[12px] mt-0.5"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       <button
         type="button"
         onClick={() =>
           onChange({
             type: 'bottom',
-            rows: [
-              ...rows,
-              { size: '', brandSize: '', inSize: '', waist: '', hip: '', inseam: '', length: '' },
-            ],
+            rows: [...rows, { size: '', hip: '', length: '' }],
             note: current.note,
           })
         }
         className="font-body text-[11px] uppercase tracking-[0.06em] text-black/55 hover:text-black"
       >
-        + Add size row
+        + Add row
       </button>
     </div>
   )

@@ -99,11 +99,7 @@ export const ProductSchema = z.object({
         rows: z.array(
           z.object({
             size: z.string().min(1),
-            brandSize: z.string().optional(),
-            inSize: z.string().optional(),
-            waist: z.string().optional(),
             hip: z.string().optional(),
-            inseam: z.string().optional(),
             length: z.string().optional(),
           })
         ),
