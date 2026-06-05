@@ -195,6 +195,120 @@ function id(prefix = 'p') {
   return `${prefix}-${Math.random().toString(16).slice(2)}-${now()}`
 }
 
+const DATA_URL_RE = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
+
+function isDataUrl(value) {
+  return typeof value === 'string' && value.startsWith('data:image/')
+}
+
+function decodeDataUrl(value) {
+  const m = typeof value === 'string' ? value.match(DATA_URL_RE) : null
+  if (!m) return null
+  try {
+    return { mime: m[1], buffer: Buffer.from(m[2], 'base64') }
+  } catch {
+    return null
+  }
+}
+
+/** Serve a decoded data URL (or redirect if it is already a plain URL). */
+function sendProductImage(res, value) {
+  if (!value) {
+    res.status(404).end()
+    return
+  }
+  if (!isDataUrl(value)) {
+    // Already a hosted/relative URL — let the client fetch it directly.
+    res.redirect(302, value)
+    return
+  }
+  const decoded = decodeDataUrl(value)
+  if (!decoded) {
+    res.status(404).end()
+    return
+  }
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  res.setHeader('Content-Type', decoded.mime)
+  res.end(decoded.buffer)
+}
+
+/** Replace heavy base64 image fields with cacheable URL endpoints (small list payload). */
+function leanProduct(p) {
+  const v = p.updatedAt || 0
+  const mainUrl = isDataUrl(p.image) ? `/api/products/${p.id}/image?v=${v}` : p.image
+
+  const galleryImages = Array.isArray(p.galleryImages)
+    ? p.galleryImages.map((img, i) =>
+        isDataUrl(img) ? `/api/products/${p.id}/gallery/${i}?v=${v}` : img
+      )
+    : p.galleryImages
+
+  const colors = Array.isArray(p.colors)
+    ? p.colors.map((c) => {
+        const images = Array.isArray(c.images)
+          ? c.images.map((img, i) =>
+              isDataUrl(img)
+                ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/${i}?v=${v}`
+                : img
+            )
+          : c.images
+        const image = isDataUrl(c.image)
+          ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/0?v=${v}`
+          : c.image || (Array.isArray(images) ? images[0] : undefined)
+        return { ...c, images, image }
+      })
+    : p.colors
+
+  return { ...p, image: mainUrl, galleryImages, colors }
+}
+
+function isInternalImageUrl(value) {
+  return typeof value === 'string' && /^\/api\/products\/.+\/(image|gallery|color-image)/.test(value)
+}
+
+/**
+ * When a save sends back our own image URLs (unchanged photos), restore original base64.
+ * Only rewrites fields actually present on `incoming` so partial patches keep existing data.
+ */
+function restoreImagesFromExisting(incoming, existing) {
+  if (!existing) return incoming
+
+  const pickColorImage = (colorId, slot) => {
+    const c = (existing.colors || []).find((x) => x.id === colorId)
+    if (!c) return undefined
+    return c.images?.[slot] ?? (slot === 0 ? c.image : undefined)
+  }
+
+  const restore = (value, fallback) => (isInternalImageUrl(value) ? fallback ?? value : value)
+
+  const result = { ...incoming }
+
+  if ('image' in incoming) {
+    result.image = restore(incoming.image, existing.image)
+  }
+
+  if (Array.isArray(incoming.galleryImages)) {
+    result.galleryImages = incoming.galleryImages.map((img, i) =>
+      restore(img, existing.galleryImages?.[i])
+    )
+  }
+
+  if (Array.isArray(incoming.colors)) {
+    result.colors = incoming.colors.map((c) => {
+      const out = { ...c }
+      if (Array.isArray(c.images)) {
+        out.images = c.images.map((img, i) => restore(img, pickColorImage(c.id, i)))
+      }
+      if ('image' in c) {
+        out.image = restore(c.image, pickColorImage(c.id, 0))
+      }
+      return out
+    })
+  }
+
+  return result
+}
+
 function defaultProducts() {
   return []
 }
@@ -612,7 +726,41 @@ app.delete('/api/orders/:id', async (req, res) => {
 
 app.get('/api/products', async (_req, res) => {
   const products = await readProducts()
-  res.json({ products })
+  res.json({ products: products.map(leanProduct) })
+})
+
+// Full product with original base64 images — used by admin edit so photos survive re-save.
+app.get('/api/products/:id/full', async (req, res) => {
+  const products = await readProducts()
+  const product = products.find((p) => p.id === req.params.id)
+  if (!product) {
+    res.status(404).json({ error: 'Not found' })
+    return
+  }
+  res.json({ product })
+})
+
+// Cacheable image endpoints (decode base64 once; browser caches the binary).
+app.get('/api/products/:id/image', async (req, res) => {
+  const products = await readProducts()
+  const product = products.find((p) => p.id === req.params.id)
+  sendProductImage(res, product?.image)
+})
+
+app.get('/api/products/:id/gallery/:slot', async (req, res) => {
+  const products = await readProducts()
+  const product = products.find((p) => p.id === req.params.id)
+  const slot = Number(req.params.slot)
+  sendProductImage(res, product?.galleryImages?.[slot])
+})
+
+app.get('/api/products/:id/color-image/:colorId/:slot', async (req, res) => {
+  const products = await readProducts()
+  const product = products.find((p) => p.id === req.params.id)
+  const color = product?.colors?.find((c) => c.id === req.params.colorId)
+  const slot = Number(req.params.slot)
+  const value = color?.images?.[slot] || (slot === 0 ? color?.image : undefined)
+  sendProductImage(res, value)
 })
 
 app.post('/api/products', async (req, res) => {
@@ -648,7 +796,8 @@ app.patch('/api/products/:id', async (req, res) => {
   }
 
   const t = now()
-  const merged = { ...existing, ...patch.data, updatedAt: t }
+  const restored = restoreImagesFromExisting({ ...patch.data }, existing)
+  const merged = { ...existing, ...restored, updatedAt: t }
   const updated = prepareProductPayload(merged, {
     createdAt: existing.createdAt,
     updatedAt: t,

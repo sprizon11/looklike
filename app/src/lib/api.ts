@@ -33,10 +33,38 @@ async function apiFetch(path: string, init?: RequestInit) {
   return res
 }
 
+/** Resolve server-relative image endpoints (/api/...) against the API base for cross-origin dev. */
+function absolutizeImageUrl(url: string | undefined, base: string): string | undefined {
+  if (!url || !base) return url
+  return url.startsWith('/api/') ? `${base}${url}` : url
+}
+
+function absolutizeProductImages(p: Product, base: string): Product {
+  if (!base) return p
+  return {
+    ...p,
+    image: absolutizeImageUrl(p.image, base) || p.image,
+    galleryImages: p.galleryImages?.map((img) => absolutizeImageUrl(img, base) || img),
+    colors: p.colors?.map((c) => ({
+      ...c,
+      image: absolutizeImageUrl(c.image, base),
+      images: c.images?.map((img) => absolutizeImageUrl(img, base) || img),
+    })),
+  }
+}
+
 export async function apiListProducts(): Promise<Product[]> {
   const res = await apiFetch('/api/products')
   const json = (await res.json()) as { products: Product[] }
-  return json.products
+  const base = getApiBase()
+  return json.products.map((p) => absolutizeProductImages(p, base))
+}
+
+/** Full product with original base64 images (admin edit) so photos survive re-save. */
+export async function apiGetFullProduct(id: string): Promise<Product> {
+  const res = await apiFetch(`/api/products/${encodeURIComponent(id)}/full`)
+  const json = (await res.json()) as { product: Product }
+  return json.product
 }
 
 export async function apiAddProduct(input: {

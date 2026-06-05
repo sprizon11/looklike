@@ -52,6 +52,10 @@ export default function ProductImageCarousel({ images, alt, className = '' }: Pr
             key={`${src}-${i}`}
             src={src}
             alt={alt}
+            loading={i === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            // @ts-expect-error fetchpriority is a valid HTML attribute
+            fetchpriority={i === 0 ? 'high' : 'auto'}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
               i === index ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
             }`}

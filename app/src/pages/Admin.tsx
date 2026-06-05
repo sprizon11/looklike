@@ -32,6 +32,7 @@ import LeggingsOutOfStockPicker from '@/components/LeggingsOutOfStockPicker'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
 import { useFeatured } from '@/hooks/use-featured'
+import { apiGetFullProduct, hasApi } from '@/lib/api'
 import type { Product } from '@/lib/products-store'
 import type { FeaturedItem } from '@/lib/featured-store'
 import { resolveOrderItemImage } from '@/lib/cart-image'
@@ -273,9 +274,18 @@ export default function Admin() {
     setProductModalOpen(true)
   }
 
-  const openEditProduct = (p: Product) => {
-    setEditingProduct(p)
+  const openEditProduct = async (listProduct: Product) => {
     setProductError('')
+    // Fetch full product with original base64 images so re-saving keeps the photos.
+    let p = listProduct
+    if (hasApi()) {
+      try {
+        p = await apiGetFullProduct(listProduct.id)
+      } catch {
+        p = listProduct
+      }
+    }
+    setEditingProduct(p)
     const leggings = isLeggingsCatalogProduct(p)
     const gallery = padColorImageSlots(p.galleryImages, p.image)
     const colors = leggings
@@ -857,7 +867,7 @@ export default function Admin() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => openEditProduct(product)}
+                            onClick={() => void openEditProduct(product)}
                             className="p-1.5 hover:bg-black/[0.04] transition-colors"
                             aria-label={`Edit ${product.name}`}
                           >

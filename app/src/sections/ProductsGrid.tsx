@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useProducts } from '@/hooks/use-products'
+import SmartImage from '@/components/SmartImage'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -194,7 +195,7 @@ export default function ProductsGrid({
           <p className="font-body text-[14px] text-black/50 py-8">No products match your filters.</p>
         ) : (
           <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            {visible.map((product) => (
+            {visible.map((product, idx) => (
               <div key={product.id} className="product-card group">
                 <button
                   type="button"
@@ -202,12 +203,12 @@ export default function ProductsGrid({
                   className="relative block w-full overflow-hidden bg-[#f7f7f7] aspect-[3/4] cursor-pointer text-left"
                   aria-label={`View ${product.name}`}
                 >
-                  <img
+                  <SmartImage
                     src={product.image}
                     alt={product.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                    priority={idx < 4}
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    className="w-full h-full object-cover ease-out group-hover:scale-105"
                   />
                 </button>
                 <div className="mt-3">
