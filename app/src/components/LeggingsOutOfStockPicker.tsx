@@ -9,6 +9,7 @@ type Props = {
 }
 
 const ALL_COLORS = buildLeggingsProductColorsLean()
+const ALL_COLOR_NAMES = ALL_COLORS.map((c) => c.name)
 
 export default function LeggingsOutOfStockPicker({ selected, onChange }: Props) {
   const [open, setOpen] = useState(false)
@@ -53,11 +54,31 @@ export default function LeggingsOutOfStockPicker({ selected, onChange }: Props) 
         />
       </button>
       {open && (
-        <div className="absolute z-20 left-0 right-0 mt-1 max-h-[280px] overflow-y-auto border border-black/15 bg-white shadow-lg p-2">
-          <p className="font-body text-[11px] text-black/45 px-2 pb-2 sticky top-0 bg-white">
-            Tick colours you do not have — customers cannot order these.
-          </p>
-          <ul className="space-y-0.5">
+        <div className="absolute z-20 left-0 right-0 mt-1 max-h-[320px] overflow-y-auto border border-black/15 bg-white shadow-lg p-2">
+          <div className="sticky top-0 bg-white z-10 pb-2 border-b border-black/[0.06]">
+            <p className="font-body text-[11px] text-black/45 px-2 pt-1">
+              Tick colours you do not have — customers cannot order these.
+            </p>
+            <div className="flex items-center gap-3 px-2 mt-2">
+              <button
+                type="button"
+                onClick={() => onChange(ALL_COLOR_NAMES)}
+                className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
+              >
+                Select all
+              </button>
+              {selected.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onChange([])}
+                  className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
+                >
+                  Clear all
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <ul className="space-y-0.5 pt-1">
             {ALL_COLORS.map((c) => {
               const checked = selected.includes(c.name)
               const short = shortLeggingsColorName(c.name)
