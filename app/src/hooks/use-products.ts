@@ -15,10 +15,19 @@ export function useProducts() {
 
   useEffect(() => {
     if (hasApi()) {
+      try {
+        const raw = window.localStorage.getItem('looklike.products.v1')
+        if (raw && raw.length > 400_000) {
+          window.localStorage.removeItem('looklike.products.v1')
+        }
+      } catch {
+        // ignore
+      }
+
       apiListProducts()
         .then((list) => {
-          replaceProducts(list)
           setProducts(list)
+          replaceProducts(list)
         })
         .catch(() => {
           setProducts(readProducts())
@@ -33,8 +42,8 @@ export function useProducts() {
   const refreshFromApi = useCallback(async () => {
     if (!hasApi()) return
     const next = await apiListProducts()
-    replaceProducts(next)
     setProducts(next)
+    replaceProducts(next)
   }, [])
 
   return useMemo(
@@ -42,20 +51,34 @@ export function useProducts() {
       products,
       addProduct: hasApi()
         ? async (input: Parameters<typeof addProductImpl>[0]) => {
-            await apiAddProduct(input)
-            await refreshFromApi()
+            const created = await apiAddProduct(input)
+            try {
+              await refreshFromApi()
+            } catch {
+              setProducts((prev) => [created, ...prev.filter((p) => p.id !== created.id)])
+            }
           }
         : addProductImpl,
       updateProduct: hasApi()
         ? async (id: string, patch: Parameters<typeof updateProductImpl>[1]) => {
-            await apiUpdateProduct(id, patch)
-            await refreshFromApi()
+            const updated = await apiUpdateProduct(id, patch)
+            setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)))
+            try {
+              await refreshFromApi()
+            } catch {
+              // server saved; in-memory state already updated
+            }
           }
         : updateProductImpl,
       deleteProduct: hasApi()
         ? async (id: string) => {
             await apiDeleteProduct(id)
-            await refreshFromApi()
+            setProducts((prev) => prev.filter((p) => p.id !== id))
+            try {
+              await refreshFromApi()
+            } catch {
+              // server deleted; in-memory state already updated
+            }
           }
         : deleteProductImpl,
     }),

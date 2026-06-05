@@ -72,6 +72,79 @@ function compactForStorage(list: Product[]) {
   return list.map((p) => compactLeggingsProductForStorage(p))
 }
 
+function isExternalImageUrl(url: string | undefined): boolean {
+  const u = (url || '').trim()
+  return u.length > 0 && !u.startsWith('data:')
+}
+
+/** Drop base64 blobs — local cache is optional when the live API is source of truth. */
+export function stripProductsForLocalCache(list: Product[]): Product[] {
+  return compactForStorage(list).map((p) => ({
+    ...p,
+    image: isExternalImageUrl(p.image) ? p.image : '',
+    galleryImages: p.galleryImages?.filter(isExternalImageUrl),
+    colors: p.colors?.map((c) => {
+      const imgs = (c.images || []).filter(isExternalImageUrl)
+      const img = isExternalImageUrl(c.image) ? c.image : imgs[0]
+      return {
+        id: c.id,
+        name: c.name,
+        ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
+        ...(c.stock !== undefined ? { stock: c.stock } : {}),
+        ...(c.outOfStock ? { outOfStock: c.outOfStock } : {}),
+        ...(img ? { image: img, images: imgs.length > 0 ? imgs : [img] } : {}),
+      }
+    }),
+  }))
+}
+
+function metadataOnlyCache(list: Product[]): Product[] {
+  return list.map((p) => ({
+    id: p.id,
+    name: p.name,
+    category: p.category,
+    price: p.price,
+    stock: p.stock,
+    image: '',
+    size: p.size,
+    sizeStock: p.sizeStock,
+    description: p.description,
+    weightKg: p.weightKg,
+    outOfStockColors: p.outOfStockColors,
+    kurtiDetails: p.kurtiDetails,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  }))
+}
+
+/** Best-effort local cache — never throws (API / server is authoritative in production). */
+export function tryCacheProducts(next: Product[]): boolean {
+  if (typeof window === 'undefined') return false
+
+  const payloads = [
+    () => compactForStorage(next),
+    () => stripProductsForLocalCache(next),
+    () => metadataOnlyCache(next),
+  ]
+
+  for (const build of payloads) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(build()))
+      window.dispatchEvent(new Event(CHANGE_EVENT))
+      return true
+    } catch {
+      // try smaller payload
+    }
+  }
+
+  try {
+    window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // ignore
+  }
+  return false
+}
+
 export function writeProducts(next: Product[]) {
   if (typeof window === 'undefined') return
   try {
@@ -81,7 +154,7 @@ export function writeProducts(next: Product[]) {
     const err = e instanceof Error ? e.message : String(e)
     if (err.includes('quota') || err.includes('QuotaExceeded')) {
       throw new Error(
-        'Browser storage is full. Product was not cached locally — if you use the live API, try again or clear site data for looklike.in.'
+        'Browser storage is full. Clear site data for looklike.in (Settings → site data), then try again.'
       )
     }
     throw e
@@ -90,7 +163,7 @@ export function writeProducts(next: Product[]) {
 
 /** Sync local cache after loading from server API (all devices see same catalog). */
 export function replaceProducts(next: Product[]) {
-  writeProducts(next)
+  tryCacheProducts(next)
 }
 
 export function subscribeProducts(onChange: () => void) {
