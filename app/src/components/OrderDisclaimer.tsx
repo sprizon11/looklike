@@ -1,4 +1,5 @@
-import { AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { AlertCircle, ChevronDown, Package } from 'lucide-react'
 import { buildWhatsAppUrl } from '@/lib/shop-contact'
 
 const IMMEDIATE_DISPATCH_MESSAGE =
@@ -10,7 +11,9 @@ type OrderDisclaimerProps = {
 }
 
 export default function OrderDisclaimer({ className = '', compact = false }: OrderDisclaimerProps) {
+  const [returnOpen, setReturnOpen] = useState(false)
   const whatsappHref = buildWhatsAppUrl(IMMEDIATE_DISPATCH_MESSAGE)
+  const textSize = compact ? 'text-[12px] leading-[1.55]' : 'text-[13px] leading-[1.65]'
 
   return (
     <aside
@@ -55,6 +58,35 @@ export default function OrderDisclaimer({ className = '', compact = false }: Ord
               for the immediate dispatch product list.
             </li>
           </ul>
+
+          <div className="mt-4 pt-4 border-t border-gold/20">
+            <button
+              type="button"
+              onClick={() => setReturnOpen((o) => !o)}
+              className="w-full flex items-center justify-between gap-3 text-left"
+              aria-expanded={returnOpen}
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <Package size={compact ? 16 : 18} strokeWidth={1.5} className="shrink-0 text-black/55" />
+                <span className={`font-display text-black ${compact ? 'text-[15px]' : 'text-[16px]'}`}>
+                  Return Policy
+                </span>
+              </span>
+              <ChevronDown
+                size={18}
+                className={`shrink-0 text-black/45 transition-transform ${returnOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {returnOpen && (
+              <div className={`mt-3 font-body text-black/70 space-y-2 ${textSize}`}>
+                <p className="font-medium text-black">No Exchange ! No Return !!</p>
+                <p>
+                  While we ensure products are defect-free, Incase of any defects , Please record a continuous &
+                  uncut video of the unboxing. Its Necessary to process any claims for exchange or return.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </aside>
