@@ -134,6 +134,22 @@ export default function ProductsGrid({
   const visible = Number.isFinite(limit) ? filtered.slice(0, Math.max(0, limit)) : filtered
   const canViewAll = showViewAll && sorted.length > 0
 
+  useEffect(() => {
+    const links: HTMLLinkElement[] = []
+    for (const product of visible.slice(0, 4)) {
+      if (!product.image) continue
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.as = 'image'
+      link.href = product.image
+      document.head.appendChild(link)
+      links.push(link)
+    }
+    return () => {
+      for (const link of links) link.remove()
+    }
+  }, [visible])
+
   return (
     <section id="products" ref={sectionRef} className="bg-white py-16 sm:py-20 md:py-24 px-5 sm:px-8 md:px-14">
       <div className="max-w-[1440px] mx-auto">

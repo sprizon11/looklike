@@ -1,6 +1,6 @@
 /** Product photos in admin — saved as square JPEG after upload. */
-export const PRODUCT_IMAGE_SIZE = 2000
-export const PRODUCT_IMAGE_QUALITY = 0.85
+export const PRODUCT_IMAGE_SIZE = 1200
+export const PRODUCT_IMAGE_QUALITY = 0.8
 
 /** Payment screenshots — keep small for API/storage. */
 export const PAYMENT_PROOF_MAX_WIDTH = 480

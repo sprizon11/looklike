@@ -4,6 +4,8 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import cors from 'cors'
+import compression from 'compression'
+import sharp from 'sharp'
 import Razorpay from 'razorpay'
 import { z } from 'zod'
 import { calcOrderTotals } from './delivery.js'
@@ -25,6 +27,7 @@ import { notifyShopWhatsAppOrder } from './whatsapp-notify.js'
 
 const app = express()
 
+app.use(compression())
 app.use(express.json({ limit: '25mb' }))
 app.use(
   cors({
@@ -211,31 +214,103 @@ function decodeDataUrl(value) {
   }
 }
 
+const GRID_THUMB_W = 420
+const IMAGE_CACHE_MAX = 300
+const imageBufferCache = new Map()
+
+let cachedProducts = null
+let cachedProductsAt = 0
+const PRODUCTS_CACHE_MS = 45_000
+
+function invalidateProductsCache() {
+  cachedProducts = null
+  cachedProductsAt = 0
+  imageBufferCache.clear()
+}
+
+function parseImageWidth(raw) {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 64 || n > 2000) return 0
+  return Math.round(n)
+}
+
+function getCachedImage(key) {
+  const hit = imageBufferCache.get(key)
+  if (!hit) return null
+  hit.last = Date.now()
+  return hit
+}
+
+function setCachedImage(key, buffer, mime) {
+  if (imageBufferCache.size >= IMAGE_CACHE_MAX) {
+    let oldestKey
+    let oldestTime = Infinity
+    for (const [k, v] of imageBufferCache) {
+      if (v.last < oldestTime) {
+        oldestTime = v.last
+        oldestKey = k
+      }
+    }
+    if (oldestKey) imageBufferCache.delete(oldestKey)
+  }
+  imageBufferCache.set(key, { buffer, mime, last: Date.now() })
+}
+
+async function prepareImageBuffer(buffer, mime, width) {
+  if (!width) return { buffer, mime }
+  try {
+    const out = await sharp(buffer)
+      .rotate()
+      .resize(width, width, { fit: 'cover', withoutEnlargement: true })
+      .jpeg({ quality: 78, mozjpeg: true })
+      .toBuffer()
+    return { buffer: out, mime: 'image/jpeg' }
+  } catch {
+    return { buffer, mime }
+  }
+}
+
 /** Serve a decoded data URL (or redirect if it is already a plain URL). */
-function sendProductImage(res, value) {
+async function sendProductImage(res, value, width = 0, cacheKey = '') {
   if (!value) {
     res.status(404).end()
     return
   }
   if (!isDataUrl(value)) {
-    // Already a hosted/relative URL — let the client fetch it directly.
     res.redirect(302, value)
     return
   }
+
+  if (cacheKey) {
+    const hit = getCachedImage(cacheKey)
+    if (hit) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      res.setHeader('Content-Type', hit.mime)
+      res.end(hit.buffer)
+      return
+    }
+  }
+
   const decoded = decodeDataUrl(value)
   if (!decoded) {
     res.status(404).end()
     return
   }
+
+  const prepared = await prepareImageBuffer(decoded.buffer, decoded.mime, width)
+  if (cacheKey) setCachedImage(cacheKey, prepared.buffer, prepared.mime)
+
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-  res.setHeader('Content-Type', decoded.mime)
-  res.end(decoded.buffer)
+  res.setHeader('Content-Type', prepared.mime)
+  res.end(prepared.buffer)
 }
 
 /** Replace heavy base64 image fields with cacheable URL endpoints (small list payload). */
 function leanProduct(p) {
   const v = p.updatedAt || 0
-  const mainUrl = isDataUrl(p.image) ? `/api/products/${p.id}/image?v=${v}` : p.image
+  const mainUrl = isDataUrl(p.image)
+    ? `/api/products/${p.id}/image?v=${v}&w=${GRID_THUMB_W}`
+    : p.image
 
   const galleryImages = Array.isArray(p.galleryImages)
     ? p.galleryImages.map((img, i) =>
@@ -352,14 +427,23 @@ function prepareProductPayload(data, timestamps) {
   }
 }
 
-async function readProducts() {
+async function readProducts({ force = false } = {}) {
+  if (!force && cachedProducts && Date.now() - cachedProductsAt < PRODUCTS_CACHE_MS) {
+    return cachedProducts
+  }
+
   const list = await listProducts()
   if (list.length === 0) {
     const seeded = defaultProducts().map(normalizeProduct)
     await seedProducts(seeded)
+    cachedProducts = seeded
+    cachedProductsAt = Date.now()
     return seeded
   }
-  return list.map(normalizeProduct)
+
+  cachedProducts = list.map(normalizeProduct)
+  cachedProductsAt = Date.now()
+  return cachedProducts
 }
 
 function calcTotal(items, state) {
@@ -740,27 +824,45 @@ app.get('/api/products/:id/full', async (req, res) => {
   res.json({ product })
 })
 
-// Cacheable image endpoints (decode base64 once; browser caches the binary).
+// Cacheable image endpoints (decode + resize once; browser caches the binary).
 app.get('/api/products/:id/image', async (req, res) => {
   const products = await readProducts()
   const product = products.find((p) => p.id === req.params.id)
-  sendProductImage(res, product?.image)
+  if (!product) {
+    res.status(404).end()
+    return
+  }
+  const width = parseImageWidth(req.query.w)
+  const cacheKey = `${product.id}:image:${product.updatedAt}:${width || 0}`
+  await sendProductImage(res, product.image, width, cacheKey)
 })
 
 app.get('/api/products/:id/gallery/:slot', async (req, res) => {
   const products = await readProducts()
   const product = products.find((p) => p.id === req.params.id)
+  if (!product) {
+    res.status(404).end()
+    return
+  }
   const slot = Number(req.params.slot)
-  sendProductImage(res, product?.galleryImages?.[slot])
+  const width = parseImageWidth(req.query.w)
+  const cacheKey = `${product.id}:gallery:${slot}:${product.updatedAt}:${width || 0}`
+  await sendProductImage(res, product.galleryImages?.[slot], width, cacheKey)
 })
 
 app.get('/api/products/:id/color-image/:colorId/:slot', async (req, res) => {
   const products = await readProducts()
   const product = products.find((p) => p.id === req.params.id)
-  const color = product?.colors?.find((c) => c.id === req.params.colorId)
+  if (!product) {
+    res.status(404).end()
+    return
+  }
+  const color = product.colors?.find((c) => c.id === req.params.colorId)
   const slot = Number(req.params.slot)
   const value = color?.images?.[slot] || (slot === 0 ? color?.image : undefined)
-  sendProductImage(res, value)
+  const width = parseImageWidth(req.query.w)
+  const cacheKey = `${product.id}:color:${req.params.colorId}:${slot}:${product.updatedAt}:${width || 0}`
+  await sendProductImage(res, value, width, cacheKey)
 })
 
 app.post('/api/products', async (req, res) => {
@@ -774,6 +876,7 @@ app.post('/api/products', async (req, res) => {
   const next = prepareProductPayload(input.data, { createdAt: t, updatedAt: t, id: id() })
   try {
     await insertProduct(next)
+    invalidateProductsCache()
     res.status(201).json({ product: next })
   } catch (err) {
     console.error('Insert product failed:', err)
@@ -805,6 +908,7 @@ app.patch('/api/products/:id', async (req, res) => {
   })
   try {
     await replaceProduct(updated)
+    invalidateProductsCache()
     res.json({ product: updated })
   } catch (err) {
     console.error('Update product failed:', err)
@@ -815,6 +919,7 @@ app.patch('/api/products/:id', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   try {
     await deleteProduct(req.params.id)
+    invalidateProductsCache()
     res.json({ ok: true })
   } catch (err) {
     if (err instanceof Error && err.message === 'Product not found') {

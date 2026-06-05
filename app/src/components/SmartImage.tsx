@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { withImageWidth } from '@/lib/image-url'
 
 type Props = {
   src?: string
@@ -7,20 +8,30 @@ type Props = {
   /** Eager-load above-the-fold images; others lazy-load. */
   priority?: boolean
   sizes?: string
+  /** Request a smaller server thumbnail for API image URLs. */
+  imageWidth?: number
 }
 
 /**
  * Image with a shimmer placeholder, async decoding and graceful error fallback.
  * Prevents broken-image icons while large photos stream in.
  */
-export default function SmartImage({ src, alt, className = '', priority = false, sizes }: Props) {
+export default function SmartImage({
+  src,
+  alt,
+  className = '',
+  priority = false,
+  sizes,
+  imageWidth,
+}: Props) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
+  const resolvedSrc = useMemo(() => withImageWidth(src, imageWidth), [src, imageWidth])
 
   useEffect(() => {
     setLoaded(false)
     setFailed(false)
-  }, [src])
+  }, [resolvedSrc])
 
   const showPlaceholder = !src || !loaded || failed
 
@@ -32,9 +43,9 @@ export default function SmartImage({ src, alt, className = '', priority = false,
           className={`absolute inset-0 ${failed ? '' : 'animate-pulse'} bg-gradient-to-br from-[#f3f1ec] via-[#eceae3] to-[#f3f1ec]`}
         />
       )}
-      {src && !failed && (
+      {resolvedSrc && !failed && (
         <img
-          src={src}
+          src={resolvedSrc}
           alt={alt}
           sizes={sizes}
           loading={priority ? 'eager' : 'lazy'}
@@ -43,7 +54,7 @@ export default function SmartImage({ src, alt, className = '', priority = false,
           decoding="async"
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
-          className={`${className} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`${className} transition-opacity duration-150 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         />
       )}
     </span>

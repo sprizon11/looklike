@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { withImageWidth } from '@/lib/image-url'
 
 const AUTO_MS = 4500
 
@@ -7,10 +8,20 @@ type Props = {
   images: string[]
   alt: string
   className?: string
+  /** Resize API photos for detail view without downloading full originals. */
+  imageWidth?: number
 }
 
-export default function ProductImageCarousel({ images, alt, className = '' }: Props) {
-  const slides = images.filter(Boolean)
+export default function ProductImageCarousel({
+  images,
+  alt,
+  className = '',
+  imageWidth = 960,
+}: Props) {
+  const slides = useMemo(
+    () => images.filter(Boolean).map((src) => withImageWidth(src, imageWidth) || src),
+    [images, imageWidth]
+  )
   const [index, setIndex] = useState(0)
   const pauseUntilRef = useRef(0)
 

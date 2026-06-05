@@ -87,6 +87,8 @@ export default function FeaturedCollection() {
                 <SmartImage
                   src={item.image}
                   alt={item.name}
+                  priority
+                  imageWidth={560}
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="w-full h-full object-cover ease-out group-hover:scale-[1.04]"
                 />
