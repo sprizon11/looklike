@@ -3,7 +3,8 @@ import type { AdminOrder } from '@/lib/orders-api'
 import type { CartItem } from '@/lib/cart-store'
 import type { Product } from '@/lib/products-store'
 import { resolveCartItemImage } from '@/lib/cart-image'
-import { buildOrderBill } from '@/lib/order-bill'
+import WhatsAppIcon from '@/components/WhatsAppIcon'
+import { buildOrderBill, sendOrderBillWhatsApp } from '@/lib/order-bill'
 
 type Props = {
   order: AdminOrder
@@ -30,6 +31,15 @@ export default function AdminBillingPanel({ order, products, onClose, onPrint }:
             <h3 className="font-display text-[22px] font-normal text-black mt-1">Customer Bill</h3>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => sendOrderBillWhatsApp(order)}
+              title={`Send bill to ${order.customer.phone} on WhatsApp`}
+              className="inline-flex items-center gap-1.5 h-[36px] px-3 bg-[#25D366] text-white font-body text-[12px] uppercase tracking-[0.06em] hover:bg-[#1fb855] transition-colors"
+            >
+              <WhatsAppIcon />
+              WhatsApp
+            </button>
             <button
               type="button"
               onClick={onPrint}

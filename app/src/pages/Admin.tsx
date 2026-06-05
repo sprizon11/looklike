@@ -26,6 +26,7 @@ import {
   FileText,
 } from 'lucide-react'
 import AdminBillingPanel from '@/components/AdminBillingPanel'
+import WhatsAppIcon from '@/components/WhatsAppIcon'
 import LeggingsOutOfStockPicker from '@/components/LeggingsOutOfStockPicker'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
@@ -57,6 +58,7 @@ import {
   serializeColorForSave,
   type ProductColor,
 } from '@/lib/product-colors'
+import { sendOrderBillWhatsApp } from '@/lib/order-bill'
 import { printAdminOrder } from '@/lib/print-order'
 import {
   buildAdminCategoryOptions,
@@ -1036,6 +1038,18 @@ export default function Admin() {
                                 </button>
                                 <button
                                   type="button"
+                                  title="Send bill on WhatsApp"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    sendOrderBillWhatsApp(order)
+                                  }}
+                                  className="p-2 hover:bg-[#25D366]/10 transition-colors"
+                                  aria-label="Send bill on WhatsApp"
+                                >
+                                  <WhatsAppIcon size={16} className="text-[#25D366]" />
+                                </button>
+                                <button
+                                  type="button"
                                   title="Print bill"
                                   onClick={(e) => {
                                     e.stopPropagation()
@@ -1080,6 +1094,14 @@ export default function Admin() {
                         >
                           <FileText size={14} />
                           Bill
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => sendOrderBillWhatsApp(selectedOrder)}
+                          className="inline-flex items-center gap-1.5 h-[36px] px-3 bg-[#25D366] text-white font-body text-[12px] uppercase tracking-[0.06em] hover:bg-[#1fb855] transition-colors"
+                        >
+                          <WhatsAppIcon size={14} />
+                          WhatsApp
                         </button>
                         <button
                           type="button"
@@ -1250,17 +1272,31 @@ export default function Admin() {
                           {formatOrderDateTime(order.createdAt)}
                         </td>
                         <td className="px-4 py-4">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setBillingOrder(order)
-                            }}
-                            className="inline-flex items-center gap-1.5 h-[32px] px-3 bg-black text-gold-light font-body text-[11px] uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
-                          >
-                            <FileText size={13} />
-                            View Bill
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setBillingOrder(order)
+                              }}
+                              className="inline-flex items-center gap-1.5 h-[32px] px-3 bg-black text-gold-light font-body text-[11px] uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
+                            >
+                              <FileText size={13} />
+                              View Bill
+                            </button>
+                            <button
+                              type="button"
+                              title="Send bill on WhatsApp"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                sendOrderBillWhatsApp(order)
+                              }}
+                              className="inline-flex items-center justify-center h-[32px] w-[32px] bg-[#25D366] text-white hover:bg-[#1fb855] transition-colors"
+                              aria-label="Send bill on WhatsApp"
+                            >
+                              <WhatsAppIcon size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

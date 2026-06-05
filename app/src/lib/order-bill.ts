@@ -11,6 +11,7 @@ import {
   formatDeliveryNote,
   type WeightedCartLine,
 } from '@/lib/delivery'
+import { openCustomerWhatsApp } from '@/lib/shop-contact'
 
 export type OrderBillLine = {
   index: number
@@ -98,6 +99,50 @@ export function buildOrderBill(order: AdminOrder): OrderBill {
     paymentLabel: orderStatusLabel(order.status),
     upiReference: order.upiReference,
   }
+}
+
+export function formatBillWhatsAppMessage(order: AdminOrder) {
+  const bill = buildOrderBill(order)
+  const lines = [
+    '🧾 *Look Like — Your Bill*',
+    '',
+    `Hi ${bill.customerName},`,
+    '',
+    `Bill No: ${bill.orderId}`,
+    `Date: ${bill.billDate}`,
+    `Payment: ${bill.paymentLabel}`,
+    '',
+    '*Items ordered:*',
+  ]
+
+  for (const line of bill.lines) {
+    lines.push(
+      `${line.index}. *${line.name}*`,
+      `   Colour: ${line.color} · Size: ${line.size}`,
+      `   ${line.quantity} × Rs. ${line.unitPrice} = Rs. ${line.lineTotal}`
+    )
+  }
+
+  lines.push(
+    '',
+    `Subtotal: Rs. ${bill.subtotal}`,
+    `Shipping (${bill.totalWeightKg.toFixed(2)} kg): Rs. ${bill.deliveryCharge}`,
+    `_${bill.shippingNote}_`,
+    `*Grand Total: Rs. ${bill.grandTotal}*`
+  )
+
+  if (bill.upiReference) {
+    lines.push('', `UPI ref: ${bill.upiReference}`)
+  }
+
+  lines.push('', 'Thank you for shopping with Look Like! 💛')
+
+  return lines.join('\n')
+}
+
+export function sendOrderBillWhatsApp(order: AdminOrder) {
+  const message = formatBillWhatsAppMessage(order)
+  return openCustomerWhatsApp(order.customer.phone, message)
 }
 
 function escapeHtml(text: string) {
