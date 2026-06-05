@@ -12,6 +12,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Ban,
   TrendingUp,
   DollarSign,
   Box,
@@ -28,8 +29,8 @@ import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
 import { useFeatured } from '@/hooks/use-featured'
 import type { Product } from '@/lib/products-store'
-import { findSideOpenKurtiToKeep, productsToRemoveExceptKeep } from '@/lib/product-prune'
 import type { FeaturedItem } from '@/lib/featured-store'
+import { resolveCartItemImage } from '@/lib/cart-image'
 import {
   apiDeleteOrder,
   apiListOrders,
@@ -92,7 +93,6 @@ export default function Admin() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productError, setProductError] = useState('')
   const [productSaving, setProductSaving] = useState(false)
-  const [productPruning, setProductPruning] = useState(false)
   const [productForm, setProductForm] = useState({
     name: '',
     category: 'Kurti',
@@ -386,35 +386,6 @@ export default function Admin() {
     setProductError('')
   }
 
-  const pruneToSideOpenKurti = async () => {
-    const keep = findSideOpenKurtiToKeep(products)
-    if (!keep) {
-      window.alert('No "Side open kurti" product found. Add it first or rename your main product.')
-      return
-    }
-    const toRemove = productsToRemoveExceptKeep(products, keep)
-    if (toRemove.length === 0) {
-      window.alert(`Only "${keep.name}" is in the catalogue.`)
-      return
-    }
-    const names = toRemove.map((p) => `• ${p.name}`).join('\n')
-    const ok = window.confirm(
-      `Keep only:\n"${keep.name}"\n\nDelete ${toRemove.length} other product(s)?\n\n${names}`
-    )
-    if (!ok) return
-
-    setProductPruning(true)
-    try {
-      for (const p of toRemove) {
-        await deleteProduct(p.id)
-      }
-    } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'Could not delete some products.')
-    } finally {
-      setProductPruning(false)
-    }
-  }
-
   const submitProduct = async () => {
     const name = productForm.name.trim()
     const category = productForm.category.trim()
@@ -531,6 +502,26 @@ export default function Admin() {
       setProductError(e instanceof Error ? e.message : 'Could not save product. Try a smaller image.')
     } finally {
       setProductSaving(false)
+    }
+  }
+
+  const markProductOutOfStock = async (p: Product) => {
+    const ok = window.confirm(`Mark "${p.name}" as OUT OF STOCK for customers?`)
+    if (!ok) return
+
+    const rows = getProductSizeStock(p).map((r) => ({ ...r, qty: 0, outOfStock: true }))
+    const outOfStockColors = isLeggingsCatalogProduct(p)
+      ? buildLeggingsProductColorsLean().map((c) => c.name)
+      : undefined
+
+    try {
+      await updateProduct(p.id, {
+        stock: 0,
+        sizeStock: rows,
+        ...(outOfStockColors ? { outOfStockColors } : {}),
+      })
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Could not update product')
     }
   }
 
@@ -785,16 +776,6 @@ export default function Admin() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <p className="font-body text-[14px] text-black/50">{filteredProducts.length} products</p>
               <div className="flex flex-wrap items-center gap-2">
-                {products.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => void pruneToSideOpenKurti()}
-                    disabled={productPruning}
-                    className="h-[40px] px-4 border border-red-200 text-red-700 font-body text-[12px] font-medium uppercase tracking-[0.04em] hover:bg-red-50 transition-colors disabled:opacity-50"
-                  >
-                    {productPruning ? 'Removing…' : 'Keep only Side open kurti'}
-                  </button>
-                )}
                 <button
                   onClick={openAddProduct}
                   className="h-[40px] px-4 bg-black text-white font-body text-[13px] font-medium uppercase tracking-[0.04em] hover:bg-black/90 transition-colors flex items-center gap-2"
@@ -838,6 +819,15 @@ export default function Admin() {
                             aria-label={`Edit ${product.name}`}
                           >
                             <Pencil size={14} className="text-black/40" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void markProductOutOfStock(product)}
+                            className="p-1.5 hover:bg-red-50 transition-colors"
+                            aria-label={`Mark ${product.name} out of stock`}
+                            title="Mark out of stock"
+                          >
+                            <Ban size={14} className="text-red-500/90" />
                           </button>
                           <button
                             onClick={() => {
@@ -1105,11 +1095,14 @@ export default function Admin() {
                           {selectedOrder.items.map((item, idx) => (
                             <li key={idx} className="flex gap-4 items-start">
                               <div className="w-16 h-20 bg-[#f7f7f7] border border-black/[0.06] overflow-hidden shrink-0">
-                                {item.image ? (
-                                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full bg-black/[0.04]" />
-                                )}
+                                {(() => {
+                                  const src = item.image?.trim() || resolveCartItemImage(item as any, products)
+                                  return src ? (
+                                    <img src={src} alt={item.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full bg-black/[0.04]" />
+                                  )
+                                })()}
                               </div>
                               <div>
                                 <p className="text-black font-medium">{item.name}</p>

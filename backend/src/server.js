@@ -252,6 +252,40 @@ function calcTotal(items, state) {
   return calcOrderTotals(items, state).amount
 }
 
+async function decrementProductStockForOrderItems(items) {
+  const products = await readProducts()
+  const byId = new Map(products.map((p) => [p.id, p]))
+  const updates = new Map()
+
+  for (const item of items || []) {
+    const pid = item.productId
+    if (!pid) continue
+    const existing = updates.get(pid) || byId.get(pid)
+    if (!existing) continue
+
+    const qty = Math.max(1, Number(item.quantity) || 1)
+    const size = (item.size || '').trim()
+
+    if (Array.isArray(existing.sizeStock) && existing.sizeStock.length > 0 && size) {
+      const nextRows = existing.sizeStock.map((r) => {
+        if ((r.size || '').trim() !== size) return r
+        const nextQty = Math.max(0, (Number(r.qty) || 0) - qty)
+        return { ...r, qty: nextQty, outOfStock: nextQty <= 0 ? true : Boolean(r.outOfStock) }
+      })
+      const sum = nextRows.reduce((n, r) => n + Math.max(0, Number(r.qty) || 0), 0)
+      updates.set(pid, { ...existing, sizeStock: nextRows, stock: sum })
+      continue
+    }
+
+    const nextStock = Math.max(0, (Number(existing.stock) || 0) - qty)
+    updates.set(pid, { ...existing, stock: nextStock })
+  }
+
+  for (const updated of updates.values()) {
+    await replaceProduct(updated)
+  }
+}
+
 function buildUpiPayUri({ upiId, payeeName, amount, note }, { includeNote = true } = {}) {
   const params = new URLSearchParams({
     pa: upiId.trim(),
@@ -429,6 +463,7 @@ app.post('/api/orders/upi', async (req, res) => {
   }
 
   await insertOrder(order)
+  await decrementProductStockForOrderItems(order.items)
 
   const upiUri = buildUpiPayUri({
     upiId: UPI_ID,
@@ -548,6 +583,7 @@ app.post('/api/orders/cod', async (req, res) => {
   }
 
   await insertOrder(order)
+  await decrementProductStockForOrderItems(order.items)
 
   const whatsapp = await notifyShopWhatsAppOrder(order)
 

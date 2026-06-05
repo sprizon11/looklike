@@ -4,7 +4,6 @@ import { ChevronLeft, Check, ShoppingBag } from 'lucide-react'
 import { useProducts } from '@/hooks/use-products'
 import { cartImageRef } from '@/lib/cart-image'
 import { addToCart, CartStorageError } from '@/lib/cart-store'
-import { buildWhatsAppUrl } from '@/lib/shop-contact'
 import {
   colorImages,
   getCustomerColorOptions,
@@ -235,12 +234,12 @@ export default function ProductDetail() {
     return true
   }
 
-  const handleAddToCart = () => {
-    if (!validateBeforeOrder()) return
+  const addCurrentToCart = (): boolean => {
+    if (!validateBeforeOrder()) return false
     const size = selectedSize
     setPickError('')
 
-    if (!validateColors()) return
+    if (!validateColors()) return false
 
     const cartImage =
       cartImageRef(activeImage) ||
@@ -277,33 +276,24 @@ export default function ProductDetail() {
     } catch (e) {
       if (e instanceof CartStorageError) {
         setPickError(e.message)
-        return
+        return false
       }
       throw e
     }
 
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2200)
+    return true
   }
 
-  const handleWhatsAppOrder = () => {
-    if (!validateBeforeOrder()) return
-    const size = selectedSize
-    setPickError('')
+  const handleAddToCart = () => {
+    void addCurrentToCart()
+  }
 
-    if (!validateColors()) return
-
-    if (isLeggings) {
-      const colourLines = pieceColors.map((c, i) => `Legging ${i + 1}: ${c}`).join('\n')
-      const message = `Hi! I'd like to order:\n${product.name}\n${colourLines}\nSize: ${size}\nPieces: ${quantity}\nPrice each: Rs. ${product.price}`
-      window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer')
-      return
-    }
-
-    const colorName = selectedColor?.name || ''
-    const colorLine = colorName ? `\nColour: ${colorName}` : ''
-    const message = `Hi! I'd like to order:\n${product.name}${colorLine}\nSize: ${size}\nQty: ${quantity}\nPrice: Rs. ${product.price}`
-    window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer')
+  const handleBuyNow = () => {
+    const ok = addCurrentToCart()
+    if (!ok) return
+    navigate('/cart')
   }
 
   const showDressColorPicker =
@@ -533,11 +523,11 @@ export default function ProductDetail() {
                 )}
               </button>
               <button
-                onClick={handleWhatsAppOrder}
+                onClick={handleBuyNow}
                 disabled={!selectedSizeRow || !isSizeAvailable(selectedSizeRow, trackSizeQty)}
                 className="inline-flex items-center justify-center h-[52px] px-8 border border-black text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] transition-colors hover:bg-black hover:text-gold-light disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Order on WhatsApp
+                Buy Now
               </button>
             </div>
           </div>
