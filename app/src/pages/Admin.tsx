@@ -1455,14 +1455,14 @@ export default function Admin() {
 
       {/* Add/Edit Product Modal */}
       {productModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <button
             className="absolute inset-0 bg-black/50"
             onClick={closeProductModal}
             aria-label="Close modal"
           />
-          <div className="relative w-full max-w-[520px] bg-white border border-black/[0.12] max-h-[85vh] overflow-y-auto">
-            <div className="p-6">
+          <div className="relative w-full max-w-[1280px] bg-white border border-black/[0.12] max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 sm:p-8">
             <div className="flex items-start justify-between gap-6">
               <div>
                 <h3 className="font-display text-[22px] font-normal text-black">
@@ -1558,6 +1558,17 @@ export default function Admin() {
                     placeholder="24"
                   />
                 </div>
+                <div>
+                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Weight (kg)</label>
+                  <input
+                    inputMode="decimal"
+                    value={productForm.weightKg}
+                    onChange={(e) => setProductForm((s) => ({ ...s, weightKg: e.target.value }))}
+                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                    placeholder="0.5"
+                  />
+                  <p className="font-body text-[11px] text-black/35 mt-1">Per piece — used for delivery charge</p>
+                </div>
                 <div className="sm:col-span-2">
                   <div className="flex items-center justify-between gap-2">
                     <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
@@ -1647,6 +1658,7 @@ export default function Admin() {
                     ))}
                   </div>
                 </div>
+              </div>
 
               {supportsSizeGuide(productForm.category) && (
                 <AdminSizeGuideEditor
@@ -1656,19 +1668,6 @@ export default function Admin() {
                   onChange={(sizeGuide) => setProductForm((s) => ({ ...s, sizeGuide }))}
                 />
               )}
-
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Weight (kg)</label>
-                  <input
-                    inputMode="decimal"
-                    value={productForm.weightKg}
-                    onChange={(e) => setProductForm((s) => ({ ...s, weightKg: e.target.value }))}
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="0.5"
-                  />
-                  <p className="font-body text-[11px] text-black/35 mt-1">Per piece — used for delivery charge</p>
-                </div>
-              </div>
 
               <div>
                 <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Description</label>

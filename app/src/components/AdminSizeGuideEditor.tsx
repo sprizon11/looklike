@@ -50,39 +50,47 @@ export default function AdminSizeGuideEditor({ category, sizeLabels, guide, onCh
         <p className="font-body text-[11px] text-black/40">
           Add bust and length in inches for each size — shown to customers under Select size.
         </p>
-        <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-          {rows.map((row, idx) => (
-            <div
-              key={idx}
-              className="grid grid-cols-[72px_1fr_1fr_auto] gap-2 items-center p-2 border border-black/10"
-            >
-              <input
-                value={row.size}
-                onChange={(e) => updateKurtiRow(rows, idx, { size: e.target.value }, onChange, current)}
-                placeholder="Size"
-                className="h-[34px] px-2 border border-black/10 font-body text-[12px]"
-              />
-              <input
-                value={row.bust}
-                onChange={(e) => updateKurtiRow(rows, idx, { bust: e.target.value }, onChange, current)}
-                placeholder="Bust (inch)"
-                className="h-[34px] px-2 border border-black/10 font-body text-[12px]"
-              />
-              <input
-                value={row.length}
-                onChange={(e) => updateKurtiRow(rows, idx, { length: e.target.value }, onChange, current)}
-                placeholder="Length (inch)"
-                className="h-[34px] px-2 border border-black/10 font-body text-[12px]"
-              />
-              <button
-                type="button"
-                onClick={() => removeKurtiRow(rows, idx, onChange, current)}
-                className="font-body text-[11px] text-red-600"
-              >
-                ×
-              </button>
+        <div className="overflow-x-auto">
+          <div className="min-w-[520px] space-y-2">
+            <div className="grid grid-cols-[100px_1fr_1fr_48px] gap-3 px-2">
+              <span className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">Size</span>
+              <span className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">Bust (inch)</span>
+              <span className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">Length (inch)</span>
+              <span />
             </div>
-          ))}
+            {rows.map((row, idx) => (
+              <div
+                key={idx}
+                className="grid grid-cols-[100px_1fr_1fr_48px] gap-3 items-center p-2 border border-black/10 bg-white"
+              >
+                <input
+                  value={row.size}
+                  onChange={(e) => updateKurtiRow(rows, idx, { size: e.target.value }, onChange, current)}
+                  placeholder="e.g. M"
+                  className="h-[38px] px-3 border border-black/10 font-body text-[13px]"
+                />
+                <input
+                  value={row.bust}
+                  onChange={(e) => updateKurtiRow(rows, idx, { bust: e.target.value }, onChange, current)}
+                  placeholder="e.g. 38"
+                  className="h-[38px] px-3 border border-black/10 font-body text-[13px]"
+                />
+                <input
+                  value={row.length}
+                  onChange={(e) => updateKurtiRow(rows, idx, { length: e.target.value }, onChange, current)}
+                  placeholder="e.g. 41"
+                  className="h-[38px] px-3 border border-black/10 font-body text-[13px]"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeKurtiRow(rows, idx, onChange, current)}
+                  className="font-body text-[12px] text-red-600 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
         <button
           type="button"
