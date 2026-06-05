@@ -130,9 +130,14 @@ export default function ProductDetail() {
 
   const galleryImages = useMemo(() => {
     if (!product) return []
-    if (isLeggings) return productGalleryImages(product)
+    if (isLeggings) {
+      const activeName = pieceColors[0] || ''
+      const row = activeName ? colors.find((c) => c.name === activeName) : undefined
+      if (row && colorImages(row).length > 0) return colorImages(row)
+      return productGalleryImages(product)
+    }
     return selectedColor ? colorImages(selectedColor) : productGalleryImages(product)
-  }, [isLeggings, selectedColor, product])
+  }, [isLeggings, selectedColor, product, colors, pieceColors])
 
   const activeImage = galleryImages[0] || product?.image || ''
 
@@ -249,11 +254,16 @@ export default function ProductDetail() {
     try {
       if (isLeggings) {
         for (let i = 0; i < quantity; i++) {
+          const pieceRow = colors.find((c) => c.name === pieceColors[i])
+          const pieceImage =
+            cartImageRef(pieceRow ? primaryColorImage(pieceRow) : '') ||
+            cartImage ||
+            cartImageRef(product.image)
           addToCart({
             productId: product.id,
             name: product.name,
             price: product.price,
-            image: cartImage,
+            image: pieceImage,
             size,
             color: pieceColors[i],
             quantity: 1,

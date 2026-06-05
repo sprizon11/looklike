@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import AdminBillingPanel from '@/components/AdminBillingPanel'
 import WhatsAppIcon from '@/components/WhatsAppIcon'
+import LeggingsColorImageEditor from '@/components/LeggingsColorImageEditor'
 import LeggingsOutOfStockPicker from '@/components/LeggingsOutOfStockPicker'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
@@ -66,6 +67,7 @@ import {
   rememberCustomCategory,
 } from '@/lib/admin-categories'
 import { extractOutOfStockColorNames } from '@/lib/color-stock'
+import { leggingsSwatchHex } from '@/lib/leggings-swatch-colors'
 import {
   emptyKurtiDetails,
   isKurtiCategory,
@@ -274,7 +276,11 @@ export default function Admin() {
     const leggings = isLeggingsCatalogProduct(p)
     const gallery = padColorImageSlots(p.galleryImages, p.image)
     const colors = leggings
-      ? [emptyColorEntry()]
+      ? normalizeProductColors(p.colors, p.image).map((c) => ({
+          ...c,
+          images: padColorImageSlots(c.images, c.image),
+          swatchHex: c.swatchHex || leggingsSwatchHex(c.name),
+        }))
       : normalizeProductColors(p.colors, p.image).map((c) => ({
           ...c,
           images: padColorImageSlots(c.images, c.image),
@@ -392,7 +398,7 @@ export default function Admin() {
       ...s,
       category: name,
       otherCategoryName: '',
-      colors: isLeggingsProduct(name) ? [emptyColorEntry()] : s.colors,
+      colors: isLeggingsProduct(name) ? [] : s.colors,
       kurtiDetails: isKurtiCategory(name) ? emptyKurtiDetails() : s.kurtiDetails,
     }))
     setProductError('')
@@ -432,17 +438,27 @@ export default function Admin() {
 
     let colors: ProductColor[]
     if (isLeggings) {
-      if (!mainImage) {
-        setProductError('Upload at least one main leggings photo (Photo 1). All 48 colour circles use this image.')
+      if (productForm.colors.length === 0) {
+        setProductError('Select at least one colour from the dropdown')
         return
       }
-      colors = buildLeggingsProductColorsLean()
+      const missingPhoto = productForm.colors.filter(
+        (c) => c.name.trim() && !padColorImageSlots(c.images, c.image).some(Boolean)
+      )
+      if (missingPhoto.length > 0) {
+        setProductError('Upload at least one photo for each selected colour')
+        return
+      }
+      colors = productForm.colors.map((c) => serializeColorForSave(c))
     } else {
       colors = productForm.colors
         .map((c) => serializeColorForSave(c))
         .filter((c) => c.name && c.images && c.images.length > 0)
     }
-    const image = mainImage || colors[0]?.image || ''
+    const image = (isLeggings ? colors[0]?.image : mainImage || colors[0]?.image) || ''
+    const galleryForSave = isLeggings
+      ? (colors[0]?.images?.slice(0, MAX_COLOR_IMAGES) || [])
+      : gallery
 
     if (!name) {
       setProductError('Product name is required')
@@ -483,7 +499,7 @@ export default function Admin() {
           price,
           stock,
           image,
-          galleryImages: gallery.length > 0 ? gallery : undefined,
+          galleryImages: galleryForSave.length > 0 ? galleryForSave : undefined,
           size,
           sizeStock,
           description,
@@ -499,7 +515,7 @@ export default function Admin() {
           price,
           stock,
           image,
-          galleryImages: gallery.length > 0 ? gallery : undefined,
+          galleryImages: galleryForSave.length > 0 ? galleryForSave : undefined,
           size,
           sizeStock,
           description,
@@ -1463,7 +1479,7 @@ export default function Admin() {
                       setProductForm((s) => ({
                         ...s,
                         category: cat,
-                        colors: isLeggingsProduct(cat) ? [emptyColorEntry()] : s.colors,
+                        colors: isLeggingsProduct(cat) ? [] : s.colors,
                         kurtiDetails:
                           isKurtiCategory(cat) && !isKurtiCategory(s.category)
                             ? emptyKurtiDetails()
@@ -1714,60 +1730,7 @@ export default function Admin() {
                 </div>
               )}
 
-              {isLeggingsAdminForm(productForm.category, productForm.colors) ? (
-                <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
-                    Main leggings photos (1–3) — same for all 48 colours
-                  </label>
-                  <p className="font-body text-[11px] text-black/35 mt-1 mb-2">
-                    Do not upload 48 separate colour photos. Customers see these photos + colour circles below.
-                    Each file is saved as {PRODUCT_IMAGE_SIZE}×{PRODUCT_IMAGE_SIZE} px (square).
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {productForm.galleryImages.map((url, slotIdx) => (
-                      <div key={slotIdx} className="space-y-1">
-                        <p className="font-body text-[10px] uppercase text-black/40">
-                          Photo {slotIdx + 1}
-                          {slotIdx === 0 ? ' (required)' : ' (optional)'}
-                        </p>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="w-full font-body text-[11px]"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            try {
-                              setProductError('')
-                              const dataUrl = await compressProductImage(file)
-                              setProductForm((s) => {
-                                const gallery = [...s.galleryImages]
-                                gallery[slotIdx] = dataUrl
-                                const filled = gallery.filter(Boolean)
-                                return {
-                                  ...s,
-                                  galleryImages: gallery,
-                                  image: filled[0] || dataUrl,
-                                }
-                              })
-                            } catch {
-                              setProductError('Could not use that image. Try a JPG or PNG under 5 MB.')
-                            }
-                            e.target.value = ''
-                          }}
-                        />
-                        {url ? (
-                          <img
-                            src={url}
-                            alt={`Leggings ${slotIdx + 1}`}
-                            className="w-full h-20 object-cover border border-black/[0.06]"
-                          />
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
+              {isLeggingsAdminForm(productForm.category, productForm.colors) ? null : (
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
                     Main product photo
@@ -1801,13 +1764,11 @@ export default function Admin() {
 
               {isLeggingsAdminForm(productForm.category, productForm.colors) ? (
                 <>
-                  <div className="p-3 border border-gold/30 bg-[#faf8f2]">
-                    <p className="font-body text-[13px] font-medium text-black">48 colour circles on website</p>
-                    <p className="font-body text-[12px] text-black/60 mt-1 leading-relaxed">
-                      When you save, all <strong>CL 1 – CL 48</strong> colours are added automatically. Customers
-                      pick from scrollable <strong>circles with names</strong> — no photo needed per colour.
-                    </p>
-                  </div>
+                  <LeggingsColorImageEditor
+                    colors={productForm.colors}
+                    onChange={(colors) => setProductForm((s) => ({ ...s, colors }))}
+                    onError={(msg) => setProductError(msg)}
+                  />
                   <LeggingsOutOfStockPicker
                     selected={productForm.outOfStockColors}
                     onChange={(names) =>
