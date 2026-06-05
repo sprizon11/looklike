@@ -102,8 +102,49 @@ export function primaryColorImage(color: ProductColor): string {
   return colorImages(color)[0] || ''
 }
 
+export function isDefaultColorName(name: string) {
+  return name.trim().toLowerCase() === 'default'
+}
+
+/** Map "Black" or short names to full chart label e.g. "CL 1. Black". */
+export function resolveLeggingsCatalogName(name: string): string {
+  const trimmed = name.trim()
+  if (/^CL\s*\d/i.test(trimmed)) return trimmed
+  const catalog = buildLeggingsProductColorsLean()
+  const key = trimmed.toLowerCase()
+  const byShort = catalog.find((c) => shortLeggingsColorName(c.name).toLowerCase() === key)
+  if (byShort) return byShort.name
+  const byFull = catalog.find((c) => c.name.toLowerCase() === key)
+  return byFull?.name || trimmed
+}
+
+/** Leggings colours with admin-uploaded photos (never includes "Default"). */
+export function leggingsPerColorImageList(
+  colors: ProductColor[] | undefined,
+  _mainImage = ''
+): ProductColor[] {
+  const out: ProductColor[] = []
+  const seen = new Set<string>()
+  for (const c of colors || []) {
+    if (!c.name?.trim() || isDefaultColorName(c.name)) continue
+    const imgs = colorImages(c)
+    if (imgs.length === 0) continue
+    const name = resolveLeggingsCatalogName(c.name)
+    if (seen.has(name)) continue
+    seen.add(name)
+    out.push({
+      ...c,
+      name,
+      images: imgs,
+      image: imgs[0],
+      swatchHex: c.swatchHex || leggingsSwatchHex(name),
+    })
+  }
+  return out
+}
+
 function leggingsColorsHaveImages(colors: ProductColor[] | undefined): boolean {
-  return (colors || []).some((c) => colorImages(c).length > 0)
+  return leggingsPerColorImageList(colors).length > 0
 }
 
 /** Colour list for product page — per-colour photos when admin uploaded them; else legacy 48 + main gallery. */
@@ -117,19 +158,16 @@ export function getCustomerColorOptions(product: {
   const mainImage = product.image?.trim() || ''
   let list: ProductColor[]
   if (isLeggingsCatalogProduct(product)) {
-    if (leggingsColorsHaveImages(product.colors)) {
-      list = normalizeProductColors(product.colors, mainImage).map((c) => ({
-        ...c,
-        swatchHex: c.swatchHex || leggingsSwatchHex(c.name),
-      }))
-    } else {
-      const gallery = productGalleryImages(product)
-      const lean =
-        normalizeLeggingsColorNamesLean(product.colors).length >= LEGGINGS_COLOR_COUNT - 2
-          ? normalizeLeggingsColorNamesLean(product.colors)
-          : buildLeggingsProductColorsLean()
-      list = hydrateLeggingsColorList(lean, mainImage, gallery)
+    const perColor = leggingsPerColorImageList(product.colors, mainImage)
+    if (perColor.length > 0) {
+      return applyColorAvailability(perColor, product.outOfStockColors)
     }
+    const gallery = productGalleryImages(product)
+    const lean =
+      normalizeLeggingsColorNamesLean(product.colors).length >= LEGGINGS_COLOR_COUNT - 2
+        ? normalizeLeggingsColorNamesLean(product.colors)
+        : buildLeggingsProductColorsLean()
+    list = hydrateLeggingsColorList(lean, mainImage, gallery)
   } else {
     list = normalizeProductColors(product.colors, mainImage)
   }
@@ -174,7 +212,9 @@ export function compactLeggingsProductForStorage<T extends {
 }>(product: T): T {
   if (!isLeggingsCatalogProduct(product)) return product
   if (leggingsColorsHaveImages(product.colors)) {
-    const colors = (product.colors || []).map((c) => serializeColorForSave(c))
+    const colors = leggingsPerColorImageList(product.colors, product.image).map((c) =>
+      serializeColorForSave(c)
+    )
     return {
       ...product,
       colors,

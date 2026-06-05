@@ -48,6 +48,9 @@ import {
 import { compressProductImage, PRODUCT_IMAGE_SIZE } from '@/lib/compress-image'
 import {
   buildLeggingsProductColorsLean,
+  isDefaultColorName,
+  leggingsPerColorImageList,
+  resolveLeggingsCatalogName,
   emptyColorEntry,
   isLeggingsAdminForm,
   isLeggingsCatalogProduct,
@@ -276,7 +279,7 @@ export default function Admin() {
     const leggings = isLeggingsCatalogProduct(p)
     const gallery = padColorImageSlots(p.galleryImages, p.image)
     const colors = leggings
-      ? normalizeProductColors(p.colors, p.image).map((c) => ({
+      ? leggingsPerColorImageList(p.colors, p.image).map((c) => ({
           ...c,
           images: padColorImageSlots(c.images, c.image),
           swatchHex: c.swatchHex || leggingsSwatchHex(c.name),
@@ -449,7 +452,14 @@ export default function Admin() {
         setProductError('Upload at least one photo for each selected colour')
         return
       }
-      colors = productForm.colors.map((c) => serializeColorForSave(c))
+      colors = productForm.colors
+        .filter((c) => !isDefaultColorName(c.name))
+        .map((c) =>
+          serializeColorForSave({
+            ...c,
+            name: resolveLeggingsCatalogName(c.name),
+          })
+        )
     } else {
       colors = productForm.colors
         .map((c) => serializeColorForSave(c))

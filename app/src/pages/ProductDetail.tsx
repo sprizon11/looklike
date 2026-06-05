@@ -7,6 +7,7 @@ import { addToCart, CartStorageError } from '@/lib/cart-store'
 import {
   colorImages,
   getCustomerColorOptions,
+  isDefaultColorName,
   isLeggingsCatalogProduct,
   primaryColorImage,
   productGalleryImages,
@@ -59,7 +60,13 @@ export default function ProductDetail() {
   const [added, setAdded] = useState(false)
   const [pickError, setPickError] = useState('')
 
-  const defaultColorName = colors[0]?.name || ''
+  const defaultColorName = useMemo(() => {
+    const pick =
+      colors.find((c) => isColorAvailable(c) && !isDefaultColorName(c.name)) ??
+      colors.find((c) => !isDefaultColorName(c.name)) ??
+      colors[0]
+    return pick?.name || ''
+  }, [colors])
 
   const selectedSizeRow: SizeStock | undefined = useMemo(
     () =>
