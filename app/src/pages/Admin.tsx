@@ -23,7 +23,9 @@ import {
   Eye,
   EyeOff,
   Printer,
+  FileText,
 } from 'lucide-react'
+import AdminBillingPanel from '@/components/AdminBillingPanel'
 import LeggingsOutOfStockPicker from '@/components/LeggingsOutOfStockPicker'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
@@ -77,7 +79,7 @@ import {
 
 const ADMIN_PASSWORD = 'admin123'
 
-type Tab = 'dashboard' | 'products' | 'featured' | 'orders' | 'customers' | 'settings'
+type Tab = 'dashboard' | 'products' | 'featured' | 'orders' | 'billing' | 'customers' | 'settings'
 
 export default function Admin() {
   const navigate = useNavigate()
@@ -127,11 +129,13 @@ export default function Admin() {
     fullSize: 'XS, S, M, L, XL, XXL',
     description: '',
     image: '' as string,
+    colors: [emptyColorEntry()] as ProductColor[],
   })
 
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null)
+  const [billingOrder, setBillingOrder] = useState<AdminOrder | null>(null)
   const [orderDeletingId, setOrderDeletingId] = useState<string | null>(null)
 
   const loadOrders = useCallback(async () => {
@@ -166,7 +170,12 @@ export default function Admin() {
 
   useEffect(() => {
     if (!authenticated) return
-    if (activeTab === 'dashboard' || activeTab === 'orders' || activeTab === 'customers') {
+    if (
+      activeTab === 'dashboard' ||
+      activeTab === 'orders' ||
+      activeTab === 'billing' ||
+      activeTab === 'customers'
+    ) {
       loadOrders()
     }
   }, [authenticated, activeTab, loadOrders])
@@ -222,15 +231,6 @@ export default function Admin() {
       return hay.includes(q)
     })
   }, [customersFromOrders, searchQuery])
-
-  const toDataUrl = (file: File) => {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result || ''))
-      reader.onerror = () => reject(new Error('Failed to read image'))
-      reader.readAsDataURL(file)
-    })
-  }
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -317,6 +317,7 @@ export default function Admin() {
       fullSize: 'XS, S, M, L, XL, XXL',
       description: '',
       image: '',
+      colors: [emptyColorEntry()],
     })
     setFeaturedModalOpen(true)
   }
@@ -324,12 +325,20 @@ export default function Admin() {
   const openEditFeatured = (f: FeaturedItem) => {
     setEditingFeatured(f)
     setFeaturedError('')
+    const normalized = normalizeProductColors(f.colors, f.image)
     setFeaturedForm({
       name: f.name,
       price: String(f.price),
       fullSize: f.fullSize,
       description: f.description,
       image: f.image,
+      colors:
+        normalized.length > 0
+          ? normalized.map((c) => ({
+              ...c,
+              images: padColorImageSlots(c.images, c.image),
+            }))
+          : [emptyColorEntry()],
     })
     setFeaturedModalOpen(true)
   }
@@ -345,13 +354,14 @@ export default function Admin() {
     const price = Number(featuredForm.price)
     const fullSize = featuredForm.fullSize.trim()
     const description = featuredForm.description.trim()
-    const image = featuredForm.image.trim()
+    const colors = featuredForm.colors.map(serializeColorForSave).filter((c) => c.name && c.image)
+    const image = colors[0]?.image || featuredForm.image.trim()
 
     if (!name) return setFeaturedError('Name is required')
     if (!Number.isFinite(price) || price < 0) return setFeaturedError('Price must be valid')
     if (!fullSize) return setFeaturedError('Full size is required')
     if (!description) return setFeaturedError('Description is required')
-    if (!image) return setFeaturedError('Please upload an image')
+    if (colors.length === 0) return setFeaturedError('Add at least one colour with name and photo')
 
     setFeaturedError('')
     if (!editingFeatured && featured.length >= 2) {
@@ -359,9 +369,9 @@ export default function Admin() {
     }
 
     if (editingFeatured) {
-      updateFeatured(editingFeatured.id, { name, price, fullSize, description, image })
+      updateFeatured(editingFeatured.id, { name, price, fullSize, description, image, colors })
     } else {
-      addFeatured({ name, price, fullSize, description, image })
+      addFeatured({ name, price, fullSize, description, image, colors })
     }
     closeFeaturedModal()
   }
@@ -603,6 +613,7 @@ export default function Admin() {
     { id: 'products', label: 'Products', icon: Package },
     { id: 'featured', label: 'New Arrivals', icon: Star },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'billing', label: 'Billing', icon: FileText },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]
@@ -674,7 +685,11 @@ export default function Admin() {
         {/* Header */}
         <div className="flex items-center justify-between mb-10">
           <h2 className="font-display text-[28px] font-normal text-black">
-            {activeTab === 'featured' ? 'New Arrivals' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+            {activeTab === 'featured'
+              ? 'New Arrivals'
+              : activeTab === 'billing'
+                ? 'Billing'
+                : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
           </h2>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -1009,13 +1024,25 @@ export default function Admin() {
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
-                                  title="Print order"
+                                  title="Generate bill"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setBillingOrder(order)
+                                  }}
+                                  className="p-2 hover:bg-black/[0.04] transition-colors"
+                                  aria-label="Generate bill"
+                                >
+                                  <FileText size={16} className="text-black/45" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Print bill"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     printAdminOrder(order)
                                   }}
                                   className="p-2 hover:bg-black/[0.04] transition-colors"
-                                  aria-label="Print order"
+                                  aria-label="Print bill"
                                 >
                                   <Printer size={16} className="text-black/45" />
                                 </button>
@@ -1046,6 +1073,14 @@ export default function Admin() {
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <h3 className="font-body text-[16px] font-medium text-black">Order details</h3>
                       <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setBillingOrder(selectedOrder)}
+                          className="inline-flex items-center gap-1.5 h-[36px] px-3 border border-black/10 font-body text-[12px] uppercase tracking-[0.06em] text-black/70 hover:border-black/30 transition-colors"
+                        >
+                          <FileText size={14} />
+                          Bill
+                        </button>
                         <button
                           type="button"
                           onClick={() => printAdminOrder(selectedOrder)}
@@ -1164,6 +1199,74 @@ export default function Admin() {
                   </div>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {/* Billing */}
+        {activeTab === 'billing' && (
+          <div className="space-y-6">
+            <p className="font-body text-[13px] text-black/50">
+              Select an order to auto-generate a customer bill with dress details, shipping charge, and grand total.
+            </p>
+
+            {ordersLoading ? (
+              <p className="font-body text-[14px] text-black/50">Loading orders…</p>
+            ) : filteredOrders.length === 0 ? (
+              <p className="font-body text-[14px] text-black/40">No orders found.</p>
+            ) : (
+              <div className="bg-white border border-black/[0.08] overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead>
+                    <tr className="border-b border-black/[0.06]">
+                      {['Order ID', 'Customer', 'Items', 'Amount', 'Date', ''].map((h) => (
+                        <th
+                          key={h || 'action'}
+                          className="text-left px-6 py-3 font-body text-[11px] uppercase tracking-[0.08em] text-black/40 font-medium"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => (
+                      <tr
+                        key={order.id}
+                        className="border-b border-black/[0.04] hover:bg-black/[0.02] cursor-pointer"
+                        onClick={() => setBillingOrder(order)}
+                      >
+                        <td className="px-6 py-4 font-body text-[13px] text-black/60 max-w-[140px] truncate">
+                          {order.id}
+                        </td>
+                        <td className="px-6 py-4 font-body text-[13px] text-black">{order.customer.name}</td>
+                        <td className="px-6 py-4 font-body text-[13px] text-black/60">
+                          {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                        </td>
+                        <td className="px-6 py-4 font-body text-[13px] font-medium text-black">
+                          Rs. {order.amount}
+                        </td>
+                        <td className="px-6 py-4 font-body text-[13px] text-black/40 whitespace-nowrap">
+                          {formatOrderDateTime(order.createdAt)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setBillingOrder(order)
+                            }}
+                            className="inline-flex items-center gap-1.5 h-[32px] px-3 bg-black text-gold-light font-body text-[11px] uppercase tracking-[0.06em] hover:bg-black/90 transition-colors"
+                          >
+                            <FileText size={13} />
+                            View Bill
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -1857,11 +1960,20 @@ export default function Admin() {
         </div>
       )}
 
+      {billingOrder && (
+        <AdminBillingPanel
+          order={billingOrder}
+          products={products}
+          onClose={() => setBillingOrder(null)}
+          onPrint={() => printAdminOrder(billingOrder)}
+        />
+      )}
+
       {/* Add/Edit New Arrival Modal */}
       {featuredModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
           <button className="absolute inset-0 bg-black/50" onClick={closeFeaturedModal} aria-label="Close modal" />
-          <div className="relative w-full max-w-[520px] bg-white border border-black/[0.12] max-h-[85vh] overflow-y-auto">
+          <div className="relative w-full max-w-[640px] bg-white border border-black/[0.12] max-h-[85vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-start justify-between gap-6">
                 <div>
@@ -1920,29 +2032,149 @@ export default function Admin() {
                 </div>
 
                 <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Image Upload</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="w-full mt-2 font-body text-[13px]"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      if (!file) return
-                      const dataUrl = await toDataUrl(file)
-                      setFeaturedForm((s) => ({ ...s, image: dataUrl }))
-                    }}
-                  />
-                  <div className="mt-3 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-black/[0.04] border border-black/[0.06] overflow-hidden">
-                      {featuredForm.image ? (
-                        <img src={featuredForm.image} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full" />
-                      )}
-                    </div>
-                    <p className="font-body text-[12px] text-black/40">
-                      {featuredForm.image ? 'Image selected' : 'No image selected'}
-                    </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
+                      Colours
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFeaturedForm((s) => ({
+                          ...s,
+                          colors: [...s.colors, emptyColorEntry()],
+                        }))
+                      }
+                      className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
+                    >
+                      + Add colour
+                    </button>
+                  </div>
+                  <p className="font-body text-[11px] text-black/35 mt-1">
+                    Upload 1–3 photos per colour — saved as {PRODUCT_IMAGE_SIZE}×{PRODUCT_IMAGE_SIZE} px each.
+                  </p>
+                  <div className="mt-3 space-y-4 max-h-[360px] overflow-y-auto pr-1">
+                    {featuredForm.colors.map((color, idx) => {
+                      const slots = padColorImageSlots(color.images, color.image)
+                      return (
+                        <div key={color.id} className="p-3 border border-black/10 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-body text-[11px] uppercase text-black/40">
+                              Colour {idx + 1}
+                            </span>
+                            {featuredForm.colors.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFeaturedForm((s) => ({
+                                    ...s,
+                                    colors: s.colors.filter((c) => c.id !== color.id),
+                                  }))
+                                }
+                                className="font-body text-[11px] text-red-600 hover:text-red-700"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            value={color.name}
+                            onChange={(e) =>
+                              setFeaturedForm((s) => ({
+                                ...s,
+                                colors: s.colors.map((c) =>
+                                  c.id === color.id ? { ...c, name: e.target.value } : c
+                                ),
+                              }))
+                            }
+                            className="w-full h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                            placeholder="e.g. Wine, Navy, Teal"
+                          />
+                          <div>
+                            <label className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">
+                              Quantity (0 = out of stock)
+                            </label>
+                            <input
+                              inputMode="numeric"
+                              value={color.stock === undefined ? '' : String(color.stock)}
+                              onChange={(e) => {
+                                const raw = e.target.value.trim()
+                                const stock =
+                                  raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0))
+                                setFeaturedForm((s) => ({
+                                  ...s,
+                                  colors: s.colors.map((c) =>
+                                    c.id === color.id
+                                      ? {
+                                          ...c,
+                                          stock,
+                                          outOfStock: stock === 0,
+                                        }
+                                      : c
+                                  ),
+                                }))
+                              }}
+                              className="w-full mt-1 h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
+                              placeholder="e.g. 10"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {slots.map((slotUrl, slotIdx) => (
+                              <div key={slotIdx} className="space-y-1">
+                                <p className="font-body text-[10px] uppercase text-black/40">
+                                  Photo {slotIdx + 1}
+                                </p>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="w-full font-body text-[11px]"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    try {
+                                      setFeaturedError('')
+                                      const dataUrl = await compressProductImage(file)
+                                      setFeaturedForm((s) => {
+                                        const nextColors = s.colors.map((c) => {
+                                          if (c.id !== color.id) return c
+                                          const imgs = padColorImageSlots(c.images, c.image)
+                                          imgs[slotIdx] = dataUrl
+                                          const filled = imgs.filter(Boolean)
+                                          return {
+                                            ...c,
+                                            images: imgs,
+                                            image: filled[0] || dataUrl,
+                                          }
+                                        })
+                                        const firstImg =
+                                          nextColors[0]?.image ||
+                                          nextColors[0]?.images?.find(Boolean) ||
+                                          dataUrl
+                                        return {
+                                          ...s,
+                                          colors: nextColors,
+                                          image: idx === 0 && slotIdx === 0 ? dataUrl : s.image || firstImg,
+                                        }
+                                      })
+                                    } catch {
+                                      setFeaturedError(
+                                        'Could not use that image. Try a JPG or PNG under 5 MB.'
+                                      )
+                                    }
+                                  }}
+                                />
+                                {slotUrl ? (
+                                  <img
+                                    src={slotUrl}
+                                    alt=""
+                                    className="w-full aspect-square object-cover border border-black/10"
+                                  />
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 

@@ -1,3 +1,5 @@
+import { normalizeProductColors, type ProductColor } from '@/lib/product-colors'
+
 export type FeaturedItem = {
   id: string
   name: string
@@ -5,8 +7,19 @@ export type FeaturedItem = {
   fullSize: string
   description: string
   image: string
+  colors?: ProductColor[]
   createdAt: number
   updatedAt: number
+}
+
+function normalizeFeaturedItem(item: FeaturedItem): FeaturedItem {
+  const colors = normalizeProductColors(item.colors, item.image)
+  const image = colors[0]?.image || item.image
+  return { ...item, colors, image }
+}
+
+export function getFeaturedColorOptions(item: FeaturedItem): ProductColor[] {
+  return normalizeProductColors(item.colors, item.image)
 }
 
 const STORAGE_KEY = 'looklike.featured.v1'
@@ -41,6 +54,20 @@ function defaultFeatured(): FeaturedItem[] {
       description:
         'Premium fabric with a smooth, breathable feel. A flattering fall that looks elegant in photos. Perfect for daily wear and special outings.',
       image: '/images/featured-kurti-1.jpg',
+      colors: [
+        {
+          id: 'f-1-wine',
+          name: 'Wine',
+          image: '/images/featured-kurti-1.jpg',
+          images: ['/images/featured-kurti-1.jpg'],
+        },
+        {
+          id: 'f-1-navy',
+          name: 'Navy',
+          image: '/images/featured-kurti-1.jpg',
+          images: ['/images/featured-kurti-1.jpg'],
+        },
+      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -52,6 +79,20 @@ function defaultFeatured(): FeaturedItem[] {
       description:
         'Designer finish with a comfortable fit. Stays neat and stylish throughout the day. Easy to pair with leggings or palazzos.',
       image: '/images/featured-kurti-2.jpg',
+      colors: [
+        {
+          id: 'f-2-teal',
+          name: 'Teal',
+          image: '/images/featured-kurti-2.jpg',
+          images: ['/images/featured-kurti-2.jpg'],
+        },
+        {
+          id: 'f-2-maroon',
+          name: 'Maroon',
+          image: '/images/featured-kurti-2.jpg',
+          images: ['/images/featured-kurti-2.jpg'],
+        },
+      ],
       createdAt: t,
       updatedAt: t,
     },
@@ -70,7 +111,7 @@ export function readFeatured(): FeaturedItem[] {
   ensureFeaturedSeeded()
   const parsed = safeParse<FeaturedItem[]>(window.localStorage.getItem(STORAGE_KEY))
   if (!Array.isArray(parsed)) return defaultFeatured()
-  return parsed
+  return parsed.map(normalizeFeaturedItem)
 }
 
 export function writeFeatured(next: FeaturedItem[]) {
@@ -98,7 +139,12 @@ export function subscribeFeatured(onChange: () => void) {
 export function addFeatured(input: Omit<FeaturedItem, 'id' | 'createdAt' | 'updatedAt'>) {
   const current = readFeatured()
   const t = now()
-  const next: FeaturedItem = { ...input, id: getBrowserId(), createdAt: t, updatedAt: t }
+  const next: FeaturedItem = normalizeFeaturedItem({
+    ...input,
+    id: getBrowserId(),
+    createdAt: t,
+    updatedAt: t,
+  })
   writeFeatured([next, ...current])
   return next
 }
@@ -106,7 +152,9 @@ export function addFeatured(input: Omit<FeaturedItem, 'id' | 'createdAt' | 'upda
 export function updateFeatured(id: string, patch: Partial<Omit<FeaturedItem, 'id' | 'createdAt'>>) {
   const current = readFeatured()
   const t = now()
-  const next = current.map((f) => (f.id === id ? { ...f, ...patch, updatedAt: t } : f))
+  const next = current.map((f) =>
+    f.id === id ? normalizeFeaturedItem({ ...f, ...patch, updatedAt: t }) : f
+  )
   writeFeatured(next)
 }
 

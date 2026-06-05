@@ -324,19 +324,6 @@ export default function ProductDetail() {
               Rs. {product.price}
             </p>
 
-            {product.description && (
-              <p className="font-body text-[15px] leading-[1.7] text-[#212121]/80 mt-5">
-                {product.description}
-              </p>
-            )}
-
-            {isKurtiCategory(product.category) && hasKurtiDetails(product.kurtiDetails) && (
-              <KurtiDetailsList
-                details={normalizeKurtiDetails(product.kurtiDetails)}
-                className="mt-5"
-              />
-            )}
-
             {showDressColorPicker && (
               <div className="mt-8">
                 <p className="font-body text-[14px] text-black">
@@ -389,6 +376,28 @@ export default function ProductDetail() {
               </div>
             )}
 
+            {isLeggings && colors.length > 0 && (
+              <div className="mt-8">
+                <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
+                  Choose colour — scroll sideways →
+                </p>
+                <div className="mt-3">
+                  <LeggingsColorStrip
+                    colors={colors}
+                    selectedName={pieceColors[0] || ''}
+                    onSelect={(name) => pickLeggingColor(0, name)}
+                    onUnavailable={(c) => setPickError(colorUnavailableMessage(c))}
+                    label={
+                      pieceColors[0]
+                        ? `Selected colour: ${pieceColors[0]}`
+                        : 'Tap a colour swatch below'
+                    }
+                    shape="circle"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="mt-8">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Select Size
@@ -434,8 +443,6 @@ export default function ProductDetail() {
               </p>
             </div>
 
-            <OrderDisclaimer className="mt-6" compact />
-
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Quantity
@@ -464,43 +471,43 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {isLeggings && colors.length > 0 && (
+            {isLeggings && colors.length > 0 && quantity > 1 && (
               <div className="mt-8 space-y-5">
                 <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
-                  Choose colour{quantity > 1 ? ' (each piece)' : ''} — scroll sideways →
+                  Choose colour for each extra piece
                 </p>
-                {quantity === 1 ? (
+                {Array.from({ length: quantity - 1 }, (_, i) => (
                   <LeggingsColorStrip
+                    key={i + 1}
                     colors={colors}
-                    selectedName={pieceColors[0] || ''}
-                    onSelect={(name) => pickLeggingColor(0, name)}
+                    selectedName={pieceColors[i + 1] || ''}
+                    onSelect={(name) => pickLeggingColor(i + 1, name)}
                     onUnavailable={(c) => setPickError(colorUnavailableMessage(c))}
                     label={
-                      pieceColors[0]
-                        ? `Selected colour: ${pieceColors[0]}`
-                        : 'Tap a colour swatch below'
+                      pieceColors[i + 1]
+                        ? `Legging ${i + 2}: ${pieceColors[i + 1]}`
+                        : `Legging ${i + 2} — tap a colour`
                     }
                     shape="circle"
                   />
-                ) : (
-                  Array.from({ length: quantity }, (_, i) => (
-                    <LeggingsColorStrip
-                      key={i}
-                      colors={colors}
-                      selectedName={pieceColors[i] || ''}
-                      onSelect={(name) => pickLeggingColor(i, name)}
-                      onUnavailable={(c) => setPickError(colorUnavailableMessage(c))}
-                      label={
-                        pieceColors[i]
-                          ? `Legging ${i + 1}: ${pieceColors[i]}`
-                          : `Legging ${i + 1} — tap a colour`
-                      }
-                      shape="circle"
-                    />
-                  ))
-                )}
+                ))}
               </div>
             )}
+
+            {product.description && (
+              <p className="font-body text-[15px] leading-[1.7] text-[#212121]/80 mt-8">
+                {product.description}
+              </p>
+            )}
+
+            {isKurtiCategory(product.category) && hasKurtiDetails(product.kurtiDetails) && (
+              <KurtiDetailsList
+                details={normalizeKurtiDetails(product.kurtiDetails)}
+                className="mt-5"
+              />
+            )}
+
+            <OrderDisclaimer className="mt-6" compact />
 
             {pickError && <p className="mt-4 font-body text-[13px] text-red-600">{pickError}</p>}
 
