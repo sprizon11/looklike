@@ -33,7 +33,7 @@ import { useProducts } from '@/hooks/use-products'
 import { useFeatured } from '@/hooks/use-featured'
 import type { Product } from '@/lib/products-store'
 import type { FeaturedItem } from '@/lib/featured-store'
-import { resolveCartItemImage } from '@/lib/cart-image'
+import { resolveOrderItemImage } from '@/lib/cart-image'
 import {
   apiDeleteOrder,
   apiListOrders,
@@ -988,18 +988,17 @@ export default function Admin() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-1.5">
-                                {order.items.slice(0, 3).map((item, idx) => (
+                                {order.items.slice(0, 3).map((item, idx) => {
+                                  const src = resolveOrderItemImage(item, products)
+                                  return (
                                   <div
                                     key={`${order.id}-${idx}`}
                                     className="w-10 h-12 bg-[#f7f7f7] border border-black/[0.06] overflow-hidden shrink-0"
                                   >
-                                    {item.image ? (
-                                      <img src={item.image} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full bg-black/[0.04]" />
-                                    )}
+                                    <img src={src} alt={item.name} className="w-full h-full object-cover" />
                                   </div>
-                                ))}
+                                  )
+                                })}
                                 {order.items.length > 3 && (
                                   <span className="font-body text-[11px] text-black/40">+{order.items.length - 3}</span>
                                 )}
@@ -1153,7 +1152,7 @@ export default function Admin() {
                             <li key={idx} className="flex gap-4 items-start">
                               <div className="w-16 h-20 bg-[#f7f7f7] border border-black/[0.06] overflow-hidden shrink-0">
                                 {(() => {
-                                  const src = item.image?.trim() || resolveCartItemImage(item as any, products)
+                                  const src = resolveOrderItemImage(item, products)
                                   return src ? (
                                     <img src={src} alt={item.name} className="w-full h-full object-cover" />
                                   ) : (
