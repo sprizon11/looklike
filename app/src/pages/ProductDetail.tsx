@@ -31,6 +31,8 @@ import OrderDisclaimer from '@/components/OrderDisclaimer'
 import { hasKurtiDetails, isKurtiCategory, normalizeKurtiDetails } from '@/lib/kurti-details'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
 import LeggingsColorStrip from '@/components/LeggingsColorStrip'
+import SizeGuidePanel from '@/components/SizeGuidePanel'
+import { hasSizeGuide, supportsSizeGuide } from '@/lib/size-guide'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -455,9 +457,13 @@ export default function ProductDetail() {
                   )
                 })}
               </div>
-              <p className="font-body text-[11px] text-black/45 mt-2">
-                Check the size chart / size guide before you order.
-              </p>
+              {product.sizeGuide && hasSizeGuide(product.sizeGuide) ? (
+                <SizeGuidePanel guide={product.sizeGuide} />
+              ) : supportsSizeGuide(product.category) ? (
+                <p className="font-body text-[11px] text-black/45 mt-2">
+                  Check the size chart / size guide before you order.
+                </p>
+              ) : null}
             </div>
 
             <div className="mt-7">

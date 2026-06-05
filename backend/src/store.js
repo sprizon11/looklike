@@ -92,6 +92,36 @@ export const ProductSchema = z.object({
       pocket: z.string().optional(),
     })
     .optional(),
+  sizeGuide: z
+    .discriminatedUnion('type', [
+      z.object({
+        type: z.literal('bottom'),
+        rows: z.array(
+          z.object({
+            size: z.string().min(1),
+            brandSize: z.string().optional(),
+            inSize: z.string().optional(),
+            waist: z.string().optional(),
+            hip: z.string().optional(),
+            inseam: z.string().optional(),
+            length: z.string().optional(),
+          })
+        ),
+        note: z.string().optional(),
+      }),
+      z.object({
+        type: z.literal('kurti'),
+        rows: z.array(
+          z.object({
+            size: z.string().min(1),
+            bust: z.string().optional(),
+            length: z.string().optional(),
+          })
+        ),
+        note: z.string().optional(),
+      }),
+    ])
+    .optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

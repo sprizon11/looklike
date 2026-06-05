@@ -29,6 +29,7 @@ import AdminBillingPanel from '@/components/AdminBillingPanel'
 import WhatsAppIcon from '@/components/WhatsAppIcon'
 import LeggingsColorImageEditor from '@/components/LeggingsColorImageEditor'
 import LeggingsOutOfStockPicker from '@/components/LeggingsOutOfStockPicker'
+import AdminSizeGuideEditor from '@/components/AdminSizeGuideEditor'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
 import { useFeatured } from '@/hooks/use-featured'
@@ -84,6 +85,12 @@ import {
   normalizeSizeStockForSave,
   sizeStockToLegacyString,
 } from '@/lib/product-sizes'
+import {
+  defaultSizeGuideForCategory,
+  normalizeSizeGuide,
+  supportsSizeGuide,
+  type SizeGuide,
+} from '@/lib/size-guide'
 
 const ADMIN_PASSWORD = 'admin123'
 
@@ -118,6 +125,7 @@ export default function Admin() {
     otherCategoryName: '',
     kurtiDetails: emptyKurtiDetails(),
     outOfStockColors: [] as string[],
+    sizeGuide: undefined as SizeGuide | undefined,
   })
 
   const [customCategoryTick, setCustomCategoryTick] = useState(0)
@@ -270,6 +278,7 @@ export default function Admin() {
       otherCategoryName: '',
       kurtiDetails: emptyKurtiDetails(),
       outOfStockColors: [],
+      sizeGuide: defaultSizeGuideForCategory('Kurti'),
     })
     setProductModalOpen(true)
   }
@@ -314,6 +323,7 @@ export default function Admin() {
       otherCategoryName: '',
       kurtiDetails: normalizeKurtiDetails(p.kurtiDetails),
       outOfStockColors: extractOutOfStockColorNames(p),
+      sizeGuide: p.sizeGuide ?? defaultSizeGuideForCategory(cat),
     })
     setProductModalOpen(true)
   }
@@ -413,6 +423,9 @@ export default function Admin() {
       otherCategoryName: '',
       colors: isLeggingsProduct(name) ? [] : s.colors,
       kurtiDetails: isKurtiCategory(name) ? emptyKurtiDetails() : s.kurtiDetails,
+      sizeGuide: supportsSizeGuide(name)
+        ? defaultSizeGuideForCategory(name)
+        : undefined,
     }))
     setProductError('')
   }
@@ -509,6 +522,7 @@ export default function Admin() {
     const outOfStockColors = isLeggings
       ? productForm.outOfStockColors.filter(Boolean)
       : undefined
+    const sizeGuide = normalizeSizeGuide(productForm.sizeGuide, saveCategory)
 
     setProductSaving(true)
     try {
@@ -527,6 +541,7 @@ export default function Admin() {
           colors,
           kurtiDetails,
           outOfStockColors,
+          sizeGuide,
         })
       } else {
         await addProduct({
@@ -543,6 +558,7 @@ export default function Admin() {
           colors,
           kurtiDetails,
           outOfStockColors,
+          sizeGuide,
         })
       }
       closeProductModal()
@@ -1504,6 +1520,9 @@ export default function Admin() {
                           isKurtiCategory(cat) && !isKurtiCategory(s.category)
                             ? emptyKurtiDetails()
                             : s.kurtiDetails,
+                        sizeGuide: supportsSizeGuide(cat)
+                          ? defaultSizeGuideForCategory(cat)
+                          : undefined,
                       }))
                       setProductError('')
                     }}
@@ -1628,6 +1647,16 @@ export default function Admin() {
                     ))}
                   </div>
                 </div>
+
+              {supportsSizeGuide(productForm.category) && (
+                <AdminSizeGuideEditor
+                  category={productForm.category}
+                  sizeLabels={productForm.sizeStock.map((r) => r.size)}
+                  guide={productForm.sizeGuide}
+                  onChange={(sizeGuide) => setProductForm((s) => ({ ...s, sizeGuide }))}
+                />
+              )}
+
                 <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Weight (kg)</label>
                   <input

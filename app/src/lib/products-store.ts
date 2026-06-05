@@ -1,6 +1,7 @@
 import { compactLeggingsProductForStorage, type ProductColor } from '@/lib/product-colors'
 import type { KurtiDetails } from '@/lib/kurti-details'
 import type { SizeStock } from '@/lib/product-sizes'
+import type { SizeGuide } from '@/lib/size-guide'
 
 export type ProductCategory = 'Kurti' | 'Leggings' | 'Palazzo' | string
 
@@ -24,6 +25,8 @@ export type Product = {
   kurtiDetails?: KurtiDetails
   /** Leggings: full colour names (CL 1. Black, …) marked out of stock */
   outOfStockColors?: string[]
+  /** Size chart for Kurti or bottom wear (leggings / palazzo / pant) */
+  sizeGuide?: SizeGuide
   createdAt: number
   updatedAt: number
 }

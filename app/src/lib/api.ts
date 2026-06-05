@@ -1,6 +1,7 @@
 import type { Product } from '@/lib/products-store'
 import type { ProductColor } from '@/lib/product-colors'
 import type { KurtiDetails } from '@/lib/kurti-details'
+import type { SizeGuide } from '@/lib/size-guide'
 import type { SizeStock } from '@/lib/product-sizes'
 import { getApiBase, hasBackendApi } from '@/lib/api-base'
 
@@ -81,6 +82,7 @@ export async function apiAddProduct(input: {
   colors?: ProductColor[]
   kurtiDetails?: KurtiDetails
   outOfStockColors?: string[]
+  sizeGuide?: SizeGuide
 }): Promise<Product> {
   const res = await apiFetch('/api/products', { method: 'POST', body: JSON.stringify(input) })
   const json = (await res.json()) as { product: Product }
@@ -103,6 +105,7 @@ export async function apiUpdateProduct(
     colors: ProductColor[]
     kurtiDetails: KurtiDetails
     outOfStockColors: string[]
+    sizeGuide: SizeGuide
   }>
 ): Promise<Product> {
   const res = await apiFetch(`/api/products/${encodeURIComponent(id)}`, {
