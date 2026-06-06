@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useProducts } from '@/hooks/use-products'
+import { scrollPageToTop } from '@/lib/scroll-page-top'
 import SmartImage from '@/components/SmartImage'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -110,6 +111,7 @@ export default function ProductsGrid({
   }, [])
 
   const goToProduct = (productId: string) => {
+    scrollPageToTop()
     navigate(`/product/${productId}`)
   }
 

@@ -34,6 +34,7 @@ import ProductImageCarousel from '@/components/ProductImageCarousel'
 import LeggingsColorStrip from '@/components/LeggingsColorStrip'
 import SizeGuidePanel from '@/components/SizeGuidePanel'
 import { hasSizeGuide, supportsSizeGuide } from '@/lib/size-guide'
+import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -41,6 +42,16 @@ export default function ProductDetail() {
   const { products } = useProducts()
 
   const product = useMemo(() => products.find((p) => p.id === id), [products, id])
+
+  useEffect(() => {
+    scrollPageToTop()
+    return scrollPageToTopAfterPaint()
+  }, [id])
+
+  useEffect(() => {
+    if (!product) return
+    return scrollPageToTopAfterPaint()
+  }, [product?.id])
 
   const isLeggings = product ? isLeggingsCatalogProduct(product) : false
 
@@ -413,8 +424,10 @@ export default function ProductDetail() {
           Back
         </button>
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-14">
-          <ProductImageCarousel images={galleryImages} alt={product.name} />
+        <div id="product-page-top" className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-14">
+          <div className="w-full">
+            <ProductImageCarousel images={galleryImages} alt={product.name} />
+          </div>
 
           <div className="flex flex-col">
             <span className="font-body text-[12px] uppercase tracking-[0.12em] text-black/40">

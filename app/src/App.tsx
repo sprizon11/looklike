@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router'
 import { repairCartStorage } from '@/lib/cart-store'
+import { scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 import Home from './pages/Home'
 import WhatsAppFloat from './components/WhatsAppFloat'
 
@@ -26,9 +27,7 @@ function ScrollToTop() {
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual'
     }
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
+    return scrollPageToTopAfterPaint()
   }, [pathname, hash])
 
   return null

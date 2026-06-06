@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useFeatured } from '@/hooks/use-featured'
+import { scrollPageToTop } from '@/lib/scroll-page-top'
 import SmartImage from '@/components/SmartImage'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -99,7 +100,10 @@ export default function FeaturedCollection() {
                 </h3>
                 <button
                   type="button"
-                  onClick={() => navigate(`/featured/${item.id}`)}
+                  onClick={() => {
+                    scrollPageToTop()
+                    navigate(`/featured/${item.id}`)
+                  }}
                   className="inline-block mt-2 font-body text-[13px] font-normal uppercase tracking-[0.06em] text-black relative"
                 >
                   View Details

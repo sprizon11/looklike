@@ -20,6 +20,7 @@ import {
 import { maxQtyForColorAndSize } from '@/lib/color-size-stock'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
+import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
 const MAX_QTY = 10
 
@@ -29,6 +30,16 @@ export default function FeaturedDetail() {
   const { featured } = useFeatured()
 
   const item = useMemo(() => featured.find((f) => f.id === id), [featured, id])
+
+  useEffect(() => {
+    scrollPageToTop()
+    return scrollPageToTopAfterPaint()
+  }, [id])
+
+  useEffect(() => {
+    if (!item) return
+    return scrollPageToTopAfterPaint()
+  }, [item?.id])
   const colors = useMemo(() => (item ? getFeaturedColorOptions(item) : []), [item])
   const sizes = useMemo(
     () => (item?.fullSize || '').split(',').map((s) => s.trim()).filter(Boolean),
