@@ -34,6 +34,8 @@ import ProductImageCarousel from '@/components/ProductImageCarousel'
 import LeggingsColorStrip from '@/components/LeggingsColorStrip'
 import SizeGuidePanel from '@/components/SizeGuidePanel'
 import { hasSizeGuide, supportsSizeGuide } from '@/lib/size-guide'
+import { SWATCH_IMAGE_W, withImageWidth } from '@/lib/image-url'
+import { prefetchProductImages } from '@/lib/preload-image'
 import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
 export default function ProductDetail() {
@@ -50,6 +52,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (!product) return
+    prefetchProductImages(product)
     return scrollPageToTopAfterPaint()
   }, [product?.id])
 
@@ -465,8 +468,10 @@ export default function ProductDetail() {
                       >
                         <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
                           <img
-                            src={primaryColorImage(c)}
+                            src={withImageWidth(primaryColorImage(c), SWATCH_IMAGE_W)}
                             alt={c.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
                         </div>

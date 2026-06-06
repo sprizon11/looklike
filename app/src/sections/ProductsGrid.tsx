@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useProducts } from '@/hooks/use-products'
+import { DETAIL_IMAGE_W, withImageWidth } from '@/lib/image-url'
+import { prefetchProductImages } from '@/lib/preload-image'
 import { scrollPageToTop } from '@/lib/scroll-page-top'
 import SmartImage from '@/components/SmartImage'
 
@@ -110,9 +112,10 @@ export default function ProductsGrid({
     return () => ctx.revert()
   }, [])
 
-  const goToProduct = (productId: string) => {
+  const goToProduct = (product: (typeof visible)[number]) => {
+    prefetchProductImages(product)
     scrollPageToTop()
-    navigate(`/product/${productId}`)
+    navigate(`/product/${product.id}`)
   }
 
   const sorted = useMemo(
@@ -139,11 +142,12 @@ export default function ProductsGrid({
   useEffect(() => {
     const links: HTMLLinkElement[] = []
     for (const product of visible.slice(0, 4)) {
-      if (!product.image) continue
+      const href = withImageWidth(product.image, DETAIL_IMAGE_W)
+      if (!href) continue
       const link = document.createElement('link')
-      link.rel = 'preload'
+      link.rel = 'prefetch'
       link.as = 'image'
-      link.href = product.image
+      link.href = href
       document.head.appendChild(link)
       links.push(link)
     }
@@ -217,7 +221,10 @@ export default function ProductsGrid({
               <div key={product.id} className="product-card group">
                 <button
                   type="button"
-                  onClick={() => goToProduct(product.id)}
+                  onClick={() => goToProduct(product)}
+                  onMouseEnter={() => prefetchProductImages(product)}
+                  onFocus={() => prefetchProductImages(product)}
+                  onTouchStart={() => prefetchProductImages(product)}
                   className="relative block w-full overflow-hidden bg-[#f7f7f7] aspect-[3/4] cursor-pointer text-left"
                   aria-label={`View ${product.name}`}
                 >
@@ -231,7 +238,7 @@ export default function ProductsGrid({
                 </button>
                 <div className="mt-3">
                   <button
-                    onClick={() => goToProduct(product.id)}
+                    onClick={() => goToProduct(product)}
                     className="font-body text-[15px] font-medium text-[#212121] text-left transition-colors hover:text-gold-dark"
                   >
                     {product.name}

@@ -265,6 +265,8 @@ function decodeDataUrl(value) {
 }
 
 const GRID_THUMB_W = 420
+const COLOR_THUMB_W = 420
+const DEFAULT_IMAGE_W = 720
 const IMAGE_CACHE_MAX = 300
 const imageBufferCache = new Map()
 
@@ -282,6 +284,11 @@ function parseImageWidth(raw) {
   const n = Number(raw)
   if (!Number.isFinite(n) || n < 64 || n > 2000) return 0
   return Math.round(n)
+}
+
+function resolveImageWidth(raw) {
+  const parsed = parseImageWidth(raw)
+  return parsed > 0 ? parsed : DEFAULT_IMAGE_W
 }
 
 function getCachedImage(key) {
@@ -309,10 +316,11 @@ function setCachedImage(key, buffer, mime) {
 async function prepareImageBuffer(buffer, mime, width) {
   if (!width) return { buffer, mime }
   try {
+    const quality = width <= GRID_THUMB_W ? 72 : 76
     const out = await sharp(buffer)
       .rotate()
       .resize(width, width, { fit: 'cover', withoutEnlargement: true })
-      .jpeg({ quality: 78, mozjpeg: true })
+      .jpeg({ quality, mozjpeg: true, progressive: true })
       .toBuffer()
     return { buffer: out, mime: 'image/jpeg' }
   } catch {
@@ -364,7 +372,7 @@ function leanProduct(p) {
 
   const galleryImages = Array.isArray(p.galleryImages)
     ? p.galleryImages.map((img, i) =>
-        isDataUrl(img) ? `/api/products/${p.id}/gallery/${i}?v=${v}` : img
+        isDataUrl(img) ? `/api/products/${p.id}/gallery/${i}?v=${v}&w=${COLOR_THUMB_W}` : img
       )
     : p.galleryImages
 
@@ -373,12 +381,12 @@ function leanProduct(p) {
         const images = Array.isArray(c.images)
           ? c.images.map((img, i) =>
               isDataUrl(img)
-                ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/${i}?v=${v}`
+                ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/${i}?v=${v}&w=${COLOR_THUMB_W}`
                 : img
             )
           : c.images
         const image = isDataUrl(c.image)
-          ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/0?v=${v}`
+          ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/0?v=${v}&w=${COLOR_THUMB_W}`
           : c.image || (Array.isArray(images) ? images[0] : undefined)
         return { ...c, images, image }
       })
@@ -927,8 +935,8 @@ app.get('/api/products/:id/image', async (req, res) => {
     res.status(404).end()
     return
   }
-  const width = parseImageWidth(req.query.w)
-  const cacheKey = `${product.id}:image:${product.updatedAt}:${width || 0}`
+  const width = resolveImageWidth(req.query.w)
+  const cacheKey = `${product.id}:image:${product.updatedAt}:${width}`
   await sendProductImage(res, product.image, width, cacheKey)
 })
 
@@ -940,8 +948,8 @@ app.get('/api/products/:id/gallery/:slot', async (req, res) => {
     return
   }
   const slot = Number(req.params.slot)
-  const width = parseImageWidth(req.query.w)
-  const cacheKey = `${product.id}:gallery:${slot}:${product.updatedAt}:${width || 0}`
+  const width = resolveImageWidth(req.query.w)
+  const cacheKey = `${product.id}:gallery:${slot}:${product.updatedAt}:${width}`
   await sendProductImage(res, product.galleryImages?.[slot], width, cacheKey)
 })
 
@@ -955,8 +963,8 @@ app.get('/api/products/:id/color-image/:colorId/:slot', async (req, res) => {
   const color = product.colors?.find((c) => c.id === req.params.colorId)
   const slot = Number(req.params.slot)
   const value = color?.images?.[slot] || (slot === 0 ? color?.image : undefined)
-  const width = parseImageWidth(req.query.w)
-  const cacheKey = `${product.id}:color:${req.params.colorId}:${slot}:${product.updatedAt}:${width || 0}`
+  const width = resolveImageWidth(req.query.w)
+  const cacheKey = `${product.id}:color:${req.params.colorId}:${slot}:${product.updatedAt}:${width}`
   await sendProductImage(res, value, width, cacheKey)
 })
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { withImageWidth } from '@/lib/image-url'
+import { DETAIL_IMAGE_W, GRID_IMAGE_W, withImageWidth } from '@/lib/image-url'
 
 const AUTO_MS = 4500
 
@@ -16,17 +16,25 @@ export default function ProductImageCarousel({
   images,
   alt,
   className = '',
-  imageWidth = 960,
+  imageWidth = DETAIL_IMAGE_W,
 }: Props) {
+  const rawSlides = useMemo(() => images.filter(Boolean), [images])
   const slides = useMemo(
-    () => images.filter(Boolean).map((src) => withImageWidth(src, imageWidth) || src),
-    [images, imageWidth]
+    () => rawSlides.map((src) => withImageWidth(src, imageWidth) || src),
+    [rawSlides, imageWidth]
   )
+  const placeholders = useMemo(
+    () => rawSlides.map((src) => withImageWidth(src, GRID_IMAGE_W) || src),
+    [rawSlides]
+  )
+
   const [index, setIndex] = useState(0)
+  const [hiResReady, setHiResReady] = useState<Record<number, boolean>>({})
   const pauseUntilRef = useRef(0)
 
   useEffect(() => {
     setIndex(0)
+    setHiResReady({})
   }, [slides.join('|')])
 
   const go = useCallback(
@@ -47,6 +55,17 @@ export default function ProductImageCarousel({
     return () => window.clearInterval(id)
   }, [slides.length, slides.join('|')])
 
+  useEffect(() => {
+    const next = (index + 1) % slides.length
+    const prev = (index - 1 + slides.length) % slides.length
+    for (const i of [index, next, prev]) {
+      const src = slides[i]
+      if (!src) continue
+      const img = new Image()
+      img.src = src
+    }
+  }, [index, slides])
+
   if (slides.length === 0) {
     return (
       <div className={`bg-[#f7f7f7] aspect-[3/4] flex items-center justify-center ${className}`}>
@@ -58,20 +77,41 @@ export default function ProductImageCarousel({
   return (
     <div className={`relative bg-[#f7f7f7] overflow-hidden group ${className}`}>
       <div className="aspect-[3/4] relative">
-        {slides.map((src, i) => (
-          <img
-            key={`${src}-${i}`}
-            src={src}
-            alt={alt}
-            loading={i === 0 ? 'eager' : 'lazy'}
-            decoding="async"
-            // @ts-expect-error fetchpriority is a valid HTML attribute
-            fetchpriority={i === 0 ? 'high' : 'auto'}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-              i === index ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
-            }`}
-          />
-        ))}
+        {slides.map((src, i) => {
+          const placeholder = placeholders[i]
+          const showPlaceholder = placeholder && placeholder !== src
+          const hiResLoaded = hiResReady[i] || !showPlaceholder
+          return (
+            <div
+              key={`${src}-${i}`}
+              className={`absolute inset-0 transition-opacity duration-500 ${
+                i === index ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
+              }`}
+            >
+              {showPlaceholder ? (
+                <img
+                  src={placeholder}
+                  alt=""
+                  aria-hidden
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : null}
+              <img
+                src={src}
+                alt={i === index ? alt : ''}
+                loading={i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                // @ts-expect-error fetchpriority is a valid HTML attribute
+                fetchpriority={i === 0 ? 'high' : 'auto'}
+                onLoad={() => setHiResReady((s) => ({ ...s, [i]: true }))}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                  hiResLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            </div>
+          )
+        })}
       </div>
 
       {slides.length > 1 && (

@@ -20,6 +20,7 @@ import {
 import { maxQtyForColorAndSize } from '@/lib/color-size-stock'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
+import { SWATCH_IMAGE_W, withImageWidth } from '@/lib/image-url'
 import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
 const MAX_QTY = 10
@@ -224,8 +225,10 @@ export default function FeaturedDetail() {
                       >
                         <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
                           <img
-                            src={primaryColorImage(c)}
+                            src={withImageWidth(primaryColorImage(c), SWATCH_IMAGE_W)}
                             alt={c.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
                         </div>
