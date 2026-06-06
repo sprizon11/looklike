@@ -76,11 +76,20 @@ export default function ProductDetail() {
     [colors, selectedColorId]
   )
 
+  const activeLeggingColor: ProductColor | undefined = useMemo(() => {
+    if (!isLeggings) return selectedColor
+    const name = pieceColors[0]?.trim()
+    if (!name) return selectedColor
+    return colors.find((c) => c.name === name) ?? selectedColor
+  }, [isLeggings, pieceColors, colors, selectedColor])
+
+  const colorForSizeUi = isLeggings ? activeLeggingColor : selectedColor
+
   const selectedSizeRow: SizeStock | undefined = useMemo(
     () =>
       sizeRows.find((r) => r.size === selectedSize) ??
-      sizeRows.find((r) => isSizeAvailableForColor(selectedColor, r, trackSizeQty)),
-    [sizeRows, selectedSize, selectedColor, trackSizeQty]
+      sizeRows.find((r) => isSizeAvailableForColor(colorForSizeUi, r, trackSizeQty)),
+    [sizeRows, selectedSize, colorForSizeUi, trackSizeQty]
   )
 
   const maxQtyForSize = maxQuantityForSize(
@@ -96,8 +105,10 @@ export default function ProductDetail() {
   }, [product?.id, colors])
 
   const firstAvailableColorName = useMemo(
-    () => colors.find((c) => isColorAvailable(c))?.name || defaultColorName,
-    [colors, defaultColorName]
+    () =>
+      colors.find((c) => isColorAvailable(c, selectedSize || undefined))?.name ||
+      defaultColorName,
+    [colors, defaultColorName, selectedSize]
   )
 
   useEffect(() => {
@@ -108,32 +119,31 @@ export default function ProductDetail() {
       while (next.length > quantity) next.pop()
       return next.map((c) => {
         const row = colors.find((x) => x.name === c)
-        if (row && isColorAvailable(row)) return c
+        if (row && isColorAvailable(row, selectedSize || undefined)) return c
         return firstAvailableColorName
       })
     })
-  }, [quantity, firstAvailableColorName, colors])
+  }, [quantity, firstAvailableColorName, colors, selectedSize])
 
   useEffect(() => {
     if (sizeRows.length === 0) return
     const firstAvailable = sizeRows.find((r) =>
-      isSizeAvailableForColor(selectedColor, r, trackSizeQty)
+      isSizeAvailableForColor(colorForSizeUi, r, trackSizeQty)
     )
     const pick = firstAvailable?.size || sizeRows[0].size
     setSelectedSize(pick)
-  }, [product?.id, sizeRows, trackSizeQty, selectedColor?.id])
+  }, [product?.id, sizeRows, trackSizeQty, colorForSizeUi?.id, isLeggings, pieceColors[0]])
 
   const maxQtyForColor = useMemo(() => {
-    if (isLeggings) {
-      return maxQtyForSize
-    }
-    const colorCap = maxQtyForColorAndSize(
-      selectedColor,
-      selectedSize,
+    const productCap =
       product?.stock && product.stock > 0 ? product.stock : 99
-    )
+    if (isLeggings) {
+      const colorCap = maxQtyForColorAndSize(activeLeggingColor, selectedSize, productCap)
+      return Math.min(maxQtyForSize, colorCap)
+    }
+    const colorCap = maxQtyForColorAndSize(selectedColor, selectedSize, productCap)
     return Math.min(maxQtyForSize, colorCap)
-  }, [maxQtyForSize, selectedColor, selectedSize, isLeggings, product?.stock])
+  }, [maxQtyForSize, selectedColor, activeLeggingColor, selectedSize, isLeggings, product?.stock])
 
   useEffect(() => {
     const cap = maxQtyForColor
@@ -169,10 +179,10 @@ export default function ProductDetail() {
   }
 
   const pickSize = (row: SizeStock) => {
-    if (!isSizeAvailableForColor(selectedColor, row, trackSizeQty)) {
+    if (!isSizeAvailableForColor(colorForSizeUi, row, trackSizeQty)) {
       setPickError(
-        selectedColor && !isLeggings
-          ? colorUnavailableMessage(selectedColor, row.size)
+        colorForSizeUi
+          ? colorUnavailableMessage(colorForSizeUi, row.size)
           : `Size ${row.size} is out of stock.`
       )
       return
@@ -184,9 +194,7 @@ export default function ProductDetail() {
       trackSizeQty,
       product.stock && product.stock > 0 ? product.stock : 99
     )
-    const colorCap = isLeggings
-      ? productCap
-      : maxQtyForColorAndSize(selectedColor, row.size, productCap)
+    const colorCap = maxQtyForColorAndSize(colorForSizeUi, row.size, productCap)
     setQuantity((q) => Math.min(Math.max(1, q), Math.min(productCap, colorCap)))
   }
 
@@ -199,8 +207,8 @@ export default function ProductDetail() {
           setPickError(`Please choose a colour for legging ${i + 1}.`)
           return false
         }
-        if (row && !isColorAvailable(row)) {
-          setPickError(colorUnavailableMessage(row))
+        if (row && !isColorAvailable(row, selectedSize)) {
+          setPickError(colorUnavailableMessage(row, selectedSize))
           return false
         }
       }
@@ -230,8 +238,8 @@ export default function ProductDetail() {
 
   const pickLeggingColor = (index: number, name: string) => {
     const row = colors.find((c) => c.name === name)
-    if (row && !isColorAvailable(row)) {
-      setPickError(colorUnavailableMessage(row))
+    if (row && !isColorAvailable(row, selectedSize)) {
+      setPickError(colorUnavailableMessage(row, selectedSize))
       return
     }
     setPieceColors((prev) => {
@@ -240,6 +248,14 @@ export default function ProductDetail() {
       return next
     })
     setPickError('')
+    if (index === 0 && row) {
+      const cap = maxQtyForColorAndSize(
+        row,
+        selectedSize,
+        product.stock && product.stock > 0 ? product.stock : 99
+      )
+      if (cap > 0) setQuantity((q) => Math.min(Math.max(1, q), cap))
+    }
   }
 
   const validateBeforeOrder = (): boolean => {
@@ -249,14 +265,38 @@ export default function ProductDetail() {
       setPickError('Please select a size.')
       return false
     }
-    if (!isSizeAvailableForColor(selectedColor, row, trackSizeQty)) {
+    if (!isSizeAvailableForColor(colorForSizeUi, row, trackSizeQty)) {
       setPickError(
-        selectedColor && !isLeggings
-          ? colorUnavailableMessage(selectedColor, row.size)
+        colorForSizeUi
+          ? colorUnavailableMessage(colorForSizeUi, row.size)
           : `Size ${row.size} is out of stock.`
       )
       return false
     }
+
+    if (isLeggings) {
+      const needByColor = new Map<string, number>()
+      for (let i = 0; i < quantity; i++) {
+        const name = pieceColors[i]?.trim()
+        if (name) needByColor.set(name, (needByColor.get(name) || 0) + 1)
+      }
+      const productCap =
+        trackSizeQty && row.qty > 0 ? row.qty : product.stock && product.stock > 0 ? product.stock : 99
+      for (const [name, need] of needByColor) {
+        const colorRow = colors.find((c) => c.name === name)
+        const cap = maxQtyForColorAndSize(colorRow, row.size, productCap)
+        if (need > cap) {
+          setPickError(
+            cap > 0
+              ? `Only ${cap} available in ${name} size ${row.size}. You selected ${need}.`
+              : `${name} size ${row.size} is out of stock.`
+          )
+          return false
+        }
+      }
+      return true
+    }
+
     const cap = maxQtyForColorAndSize(
       selectedColor,
       row.size,
@@ -430,7 +470,8 @@ export default function ProductDetail() {
                     colors={colors}
                     selectedName={pieceColors[0] || ''}
                     onSelect={(name) => pickLeggingColor(0, name)}
-                    onUnavailable={(c) => setPickError(colorUnavailableMessage(c))}
+                    onUnavailable={(c) => setPickError(colorUnavailableMessage(c, selectedSize))}
+                    size={selectedSize}
                     label={
                       pieceColors[0]
                         ? `Selected colour: ${pieceColors[0]}`
@@ -448,8 +489,8 @@ export default function ProductDetail() {
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 {sizeRows.map((row) => {
-                  const available = isSizeAvailableForColor(selectedColor, row, trackSizeQty)
-                  const hint = sizeStockHintForColor(selectedColor, row, trackSizeQty)
+                  const available = isSizeAvailableForColor(colorForSizeUi, row, trackSizeQty)
+                  const hint = sizeStockHintForColor(colorForSizeUi, row, trackSizeQty)
                   const active = selectedSize === row.size
                   return (
                     <button
@@ -530,7 +571,8 @@ export default function ProductDetail() {
                     colors={colors}
                     selectedName={pieceColors[i + 1] || ''}
                     onSelect={(name) => pickLeggingColor(i + 1, name)}
-                    onUnavailable={(c) => setPickError(colorUnavailableMessage(c))}
+                    onUnavailable={(c) => setPickError(colorUnavailableMessage(c, selectedSize))}
+                    size={selectedSize}
                     label={
                       pieceColors[i + 1]
                         ? `Legging ${i + 2}: ${pieceColors[i + 1]}`

@@ -528,8 +528,9 @@ export default function Admin() {
     }
 
     setProductError('')
+    const derivedOos = colors.filter((c) => c.outOfStock).map((c) => c.name)
     const outOfStockColors = isLeggings
-      ? productForm.outOfStockColors.filter(Boolean)
+      ? [...new Set([...productForm.outOfStockColors.filter(Boolean), ...derivedOos])]
       : undefined
     const sizeGuide = normalizeSizeGuide(productForm.sizeGuide, saveCategory)
 
@@ -1823,6 +1824,7 @@ export default function Admin() {
                 <>
                   <LeggingsColorImageEditor
                     colors={productForm.colors}
+                    sizeLabels={productForm.sizeStock.map((r) => r.size)}
                     onChange={(colors) => setProductForm((s) => ({ ...s, colors }))}
                     onError={(msg) => setProductError(msg)}
                   />

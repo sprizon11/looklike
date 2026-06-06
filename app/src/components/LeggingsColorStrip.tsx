@@ -9,6 +9,8 @@ type Props = {
   onUnavailable?: (color: ProductColor) => void
   label?: string
   shape?: 'circle' | 'square'
+  /** When set, availability and stock hints use this size (per-colour per-size stock). */
+  size?: string
 }
 
 function swatchFill(c: ProductColor) {
@@ -24,6 +26,7 @@ export default function LeggingsColorStrip({
   onUnavailable,
   label,
   shape = 'circle',
+  size,
 }: Props) {
   const rounded = shape === 'circle' ? 'rounded-full' : 'rounded-md'
 
@@ -33,8 +36,8 @@ export default function LeggingsColorStrip({
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scroll-smooth [scrollbar-width:thin]">
         {colors.map((c) => {
           const active = selectedName === c.name
-          const available = isColorAvailable(c)
-          const hint = colorStockHint(c)
+          const available = isColorAvailable(c, size)
+          const hint = colorStockHint(c, size)
           const fill = swatchFill(c)
           const needsBorder = fill.type === 'hex' && swatchNeedsBorder(fill.value)
           const shortName = shortLeggingsColorName(c.name)

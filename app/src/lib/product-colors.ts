@@ -202,6 +202,9 @@ export function normalizeLeggingsColorNamesLean(colors: ProductColor[] | undefin
       name: c.name.trim(),
       swatchHex: c.swatchHex || leggingsSwatchHex(c.name),
       ...(c.swatch ? { swatch: c.swatch } : {}),
+      ...(c.sizeStock?.length
+        ? { sizeStock: normalizeColorSizeStockForSave(c.sizeStock) }
+        : {}),
       ...(c.stock !== undefined ? { stock: Math.max(0, Number(c.stock) || 0) } : {}),
       ...(c.outOfStock ? { outOfStock: true } : {}),
     })

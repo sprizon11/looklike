@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { compressProductImage, PRODUCT_IMAGE_SIZE } from '@/lib/compress-image'
+import ColorSizeStockEditor from '@/components/ColorSizeStockEditor'
+import { syncColorSizeStockWithLabels } from '@/lib/color-size-stock'
 import {
   buildLeggingsProductColorsLean,
   emptyColorEntry,
@@ -11,23 +13,30 @@ import {
 
 type Props = {
   colors: ProductColor[]
+  sizeLabels: string[]
   onChange: (colors: ProductColor[]) => void
   onError?: (message: string) => void
 }
 
 const CATALOG = buildLeggingsProductColorsLean()
 
-function catalogEntry(name: string): ProductColor {
+function catalogEntry(name: string, sizeLabels: string[]): ProductColor {
   const found = CATALOG.find((c) => c.name === name)
-  if (!found) return emptyColorEntry(name)
+  if (!found) {
+    return {
+      ...emptyColorEntry(name),
+      sizeStock: syncColorSizeStockWithLabels(undefined, sizeLabels),
+    }
+  }
   return {
     ...found,
     images: ['', '', ''],
     image: '',
+    sizeStock: syncColorSizeStockWithLabels(undefined, sizeLabels),
   }
 }
 
-export default function LeggingsColorImageEditor({ colors, onChange, onError }: Props) {
+export default function LeggingsColorImageEditor({ colors, sizeLabels, onChange, onError }: Props) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const selectedNames = new Set(colors.map((c) => c.name.trim()).filter(Boolean))
@@ -46,7 +55,7 @@ export default function LeggingsColorImageEditor({ colors, onChange, onError }: 
     if (selectedNames.has(key)) {
       onChange(colors.filter((c) => c.name.trim() !== key))
     } else {
-      onChange([...colors, catalogEntry(key)])
+      onChange([...colors, catalogEntry(key, sizeLabels)])
     }
   }
 
@@ -177,6 +186,13 @@ export default function LeggingsColorImageEditor({ colors, onChange, onError }: 
                     </div>
                   ))}
                 </div>
+                <ColorSizeStockEditor
+                  sizeLabels={sizeLabels}
+                  sizeStock={color.sizeStock}
+                  onChange={(sizeStock) =>
+                    onChange(colors.map((c) => (c.id === color.id ? { ...c, sizeStock } : c)))
+                  }
+                />
               </div>
             )
           })}
