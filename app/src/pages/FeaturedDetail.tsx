@@ -14,7 +14,10 @@ import {
   colorStockHint,
   colorUnavailableMessage,
   isColorAvailable,
+  isSizeAvailableForColor,
+  sizeStockHintForColor,
 } from '@/lib/color-stock'
+import { maxQtyForColorAndSize } from '@/lib/color-size-stock'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
 
@@ -43,13 +46,12 @@ export default function FeaturedDetail() {
     [colors, selectedColorId]
   )
 
+  const activeSize = selectedSize || sizes[0] || 'Free Size'
+
   const maxQtyForColor = useMemo(() => {
-    let cap = MAX_QTY
-    if (selectedColor?.stock !== undefined && selectedColor.stock > 0) {
-      cap = Math.min(cap, selectedColor.stock)
-    }
-    return cap
-  }, [selectedColor?.stock])
+    const colorCap = maxQtyForColorAndSize(selectedColor, activeSize, MAX_QTY)
+    return Math.min(MAX_QTY, colorCap)
+  }, [selectedColor, activeSize])
 
   useEffect(() => {
     if (colors.length === 0) return
@@ -64,7 +66,7 @@ export default function FeaturedDetail() {
 
   useEffect(() => {
     if (maxQtyForColor > 0) setQuantity((q) => Math.min(Math.max(1, q), maxQtyForColor))
-  }, [selectedColorId, maxQtyForColor])
+  }, [selectedColorId, selectedSize, maxQtyForColor])
 
   if (!item) {
     return (
@@ -81,7 +83,6 @@ export default function FeaturedDetail() {
     )
   }
 
-  const activeSize = selectedSize || sizes[0] || 'Free Size'
   const galleryImages = selectedColor
     ? colorImages(selectedColor)
     : item.image
@@ -92,21 +93,39 @@ export default function FeaturedDetail() {
     colors.length > 1 || (colors[0] && colors[0].name !== 'Default')
 
   const pickColor = (c: ProductColor) => {
-    if (!isColorAvailable(c)) {
-      setPickError(colorUnavailableMessage(c))
+    if (!isColorAvailable(c, activeSize)) {
+      setPickError(colorUnavailableMessage(c, activeSize))
       return
     }
     setSelectedColorId(c.id)
     setPickError('')
+    const cap = maxQtyForColorAndSize(c, activeSize, MAX_QTY)
+    if (cap > 0) setQuantity((q) => Math.min(Math.max(1, q), cap))
+  }
+
+  const pickSize = (size: string) => {
+    if (selectedColor && !isColorAvailable(selectedColor, size)) {
+      setPickError(colorUnavailableMessage(selectedColor, size))
+      return
+    }
+    setSelectedSize(size)
+    setPickError('')
+    const cap = maxQtyForColorAndSize(selectedColor, size, MAX_QTY)
+    if (cap > 0) setQuantity((q) => Math.min(Math.max(1, q), cap))
   }
 
   const addCurrentToCart = (): boolean => {
-    if (selectedColor && !isColorAvailable(selectedColor)) {
-      setPickError(colorUnavailableMessage(selectedColor))
+    if (selectedColor && !isColorAvailable(selectedColor, activeSize)) {
+      setPickError(colorUnavailableMessage(selectedColor, activeSize))
       return false
     }
-    if (selectedColor?.stock !== undefined && quantity > selectedColor.stock) {
-      setPickError(`Only ${selectedColor.stock} available in ${selectedColor.name}.`)
+    const cap = maxQtyForColorAndSize(selectedColor, activeSize, MAX_QTY)
+    if (quantity > cap) {
+      setPickError(
+        cap > 0
+          ? `Only ${cap} available in ${selectedColor?.name || 'this colour'} size ${activeSize}.`
+          : `Size ${activeSize} is out of stock for ${selectedColor?.name || 'this colour'}.`
+      )
       return false
     }
 
@@ -177,8 +196,8 @@ export default function FeaturedDetail() {
                 <div className="mt-3 flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
                   {colors.map((c) => {
                     const active = selectedColor?.id === c.id
-                    const available = isColorAvailable(c)
-                    const hint = colorStockHint(c)
+                    const available = isColorAvailable(c, activeSize)
+                    const hint = colorStockHint(c, activeSize)
                     return (
                       <button
                         key={c.id}
@@ -229,18 +248,36 @@ export default function FeaturedDetail() {
                 <div className="flex flex-wrap gap-2 mt-3">
                   {sizes.map((s) => {
                     const active = activeSize === s
+                    const sizeRow = { size: s, qty: 0, outOfStock: false }
+                    const available = isSizeAvailableForColor(selectedColor, sizeRow, false)
+                    const hint = sizeStockHintForColor(selectedColor, sizeRow, false)
                     return (
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setSelectedSize(s)}
-                        className={`min-w-[56px] px-3 py-2 border font-body text-[13px] transition-colors ${
-                          active
-                            ? 'bg-black text-gold-light border-black'
-                            : 'bg-white text-black border-black/15 hover:border-gold'
+                        onClick={() => pickSize(s)}
+                        className={`min-w-[56px] px-3 py-2 border font-body text-[13px] transition-colors flex flex-col items-center ${
+                          !available
+                            ? 'bg-black/[0.04] text-black/35 border-black/10 cursor-not-allowed'
+                            : active
+                              ? 'bg-black text-gold-light border-black'
+                              : 'bg-white text-black border-black/15 hover:border-gold'
                         }`}
                       >
-                        {s}
+                        <span>{s}</span>
+                        {hint ? (
+                          <span
+                            className={`text-[10px] mt-0.5 ${
+                              !available
+                                ? 'text-red-600 font-medium'
+                                : active
+                                  ? 'text-gold-light/90'
+                                  : 'text-black/45'
+                            }`}
+                          >
+                            {hint}
+                          </span>
+                        ) : null}
                       </button>
                     )
                   })}
@@ -254,7 +291,7 @@ export default function FeaturedDetail() {
             <div className="mt-7">
               <p className="font-body text-[12px] uppercase tracking-[0.08em] text-black/50">
                 Quantity
-                {maxQtyForColor > 0 && selectedColor?.stock !== undefined ? (
+                {maxQtyForColor > 0 ? (
                   <span className="text-black/40 normal-case"> (max {maxQtyForColor})</span>
                 ) : null}
               </p>

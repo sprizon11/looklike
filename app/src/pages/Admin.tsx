@@ -30,6 +30,7 @@ import WhatsAppIcon from '@/components/WhatsAppIcon'
 import LeggingsColorImageEditor from '@/components/LeggingsColorImageEditor'
 import LeggingsOutOfStockPicker from '@/components/LeggingsOutOfStockPicker'
 import AdminSizeGuideEditor from '@/components/AdminSizeGuideEditor'
+import ColorSizeStockEditor from '@/components/ColorSizeStockEditor'
 import Logo from '@/components/Logo'
 import { useProducts } from '@/hooks/use-products'
 import { useFeatured } from '@/hooks/use-featured'
@@ -83,8 +84,10 @@ import {
   defaultSizeStockRows,
   getProductSizeStock,
   normalizeSizeStockForSave,
+  parseSizeList,
   sizeStockToLegacyString,
 } from '@/lib/product-sizes'
+import { syncColorSizeStockWithLabels } from '@/lib/color-size-stock'
 import {
   defaultSizeGuideForCategory,
   normalizeSizeGuide,
@@ -308,6 +311,7 @@ export default function Admin() {
           images: padColorImageSlots(c.images, c.image),
         }))
     const cat = leggings ? 'Leggings' : p.category
+    const sizeLabels = getProductSizeStock(p).map((r) => r.size)
     setProductForm({
       name: p.name,
       category: cat,
@@ -319,7 +323,10 @@ export default function Admin() {
       sizeStock: getProductSizeStock(p),
       description: p.description || '',
       weightKg: String(p.weightKg ?? 0.5),
-      colors,
+      colors: colors.map((c) => ({
+        ...c,
+        sizeStock: syncColorSizeStockWithLabels(c.sizeStock, sizeLabels),
+      })),
       otherCategoryName: '',
       kurtiDetails: normalizeKurtiDetails(p.kurtiDetails),
       outOfStockColors: extractOutOfStockColorNames(p),
@@ -357,6 +364,7 @@ export default function Admin() {
     setEditingFeatured(f)
     setFeaturedError('')
     const normalized = normalizeProductColors(f.colors, f.image)
+    const sizeLabels = parseSizeList(f.fullSize)
     setFeaturedForm({
       name: f.name,
       price: String(f.price),
@@ -368,6 +376,7 @@ export default function Admin() {
           ? normalized.map((c) => ({
               ...c,
               images: padColorImageSlots(c.images, c.image),
+              sizeStock: syncColorSizeStockWithLabels(c.sizeStock, sizeLabels),
             }))
           : [emptyColorEntry()],
     })
@@ -1884,34 +1893,18 @@ export default function Admin() {
                           className="w-full h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
                           placeholder="e.g. CL 1. Black, Wine, Mehandi"
                         />
-                        <div>
-                          <label className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">
-                            Quantity (0 = out of stock)
-                          </label>
-                          <input
-                            inputMode="numeric"
-                            value={color.stock === undefined ? '' : String(color.stock)}
-                            onChange={(e) => {
-                              const raw = e.target.value.trim()
-                              const stock =
-                                raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0))
-                              setProductForm((s) => ({
-                                ...s,
-                                colors: s.colors.map((c) =>
-                                  c.id === color.id
-                                    ? {
-                                        ...c,
-                                        stock,
-                                        outOfStock: stock === 0,
-                                      }
-                                    : c
-                                ),
-                              }))
-                            }}
-                            className="w-full mt-1 h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                            placeholder="e.g. 10"
-                          />
-                        </div>
+                        <ColorSizeStockEditor
+                          sizeLabels={productForm.sizeStock.map((r) => r.size)}
+                          sizeStock={color.sizeStock}
+                          onChange={(sizeStock) =>
+                            setProductForm((s) => ({
+                              ...s,
+                              colors: s.colors.map((c) =>
+                                c.id === color.id ? { ...c, sizeStock } : c
+                              ),
+                            }))
+                          }
+                        />
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           {slots.map((slotUrl, slotIdx) => (
                             <div key={slotIdx} className="space-y-1">
@@ -2133,34 +2126,18 @@ export default function Admin() {
                             className="w-full h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
                             placeholder="e.g. Wine, Navy, Teal"
                           />
-                          <div>
-                            <label className="font-body text-[10px] uppercase tracking-[0.06em] text-black/45">
-                              Quantity (0 = out of stock)
-                            </label>
-                            <input
-                              inputMode="numeric"
-                              value={color.stock === undefined ? '' : String(color.stock)}
-                              onChange={(e) => {
-                                const raw = e.target.value.trim()
-                                const stock =
-                                  raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0))
-                                setFeaturedForm((s) => ({
-                                  ...s,
-                                  colors: s.colors.map((c) =>
-                                    c.id === color.id
-                                      ? {
-                                          ...c,
-                                          stock,
-                                          outOfStock: stock === 0,
-                                        }
-                                      : c
-                                  ),
-                                }))
-                              }}
-                              className="w-full mt-1 h-[38px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                              placeholder="e.g. 10"
-                            />
-                          </div>
+                          <ColorSizeStockEditor
+                            sizeLabels={parseSizeList(featuredForm.fullSize)}
+                            sizeStock={color.sizeStock}
+                            onChange={(sizeStock) =>
+                              setFeaturedForm((s) => ({
+                                ...s,
+                                colors: s.colors.map((c) =>
+                                  c.id === color.id ? { ...c, sizeStock } : c
+                                ),
+                              }))
+                            }
+                          />
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {slots.map((slotUrl, slotIdx) => (
                               <div key={slotIdx} className="space-y-1">

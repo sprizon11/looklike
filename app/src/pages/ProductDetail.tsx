@@ -17,13 +17,14 @@ import {
   colorStockHint,
   colorUnavailableMessage,
   isColorAvailable,
+  isSizeAvailableForColor,
+  sizeStockHintForColor,
 } from '@/lib/color-stock'
+import { maxQtyForColorAndSize } from '@/lib/color-size-stock'
 import {
   getProductSizeStock,
   hasExplicitSizeStock,
-  isSizeAvailable,
   maxQuantityForSize,
-  sizeStockHint,
   type SizeStock,
 } from '@/lib/product-sizes'
 import KurtiDetailsList from '@/components/KurtiDetailsList'
@@ -70,11 +71,16 @@ export default function ProductDetail() {
     return pick?.name || ''
   }, [colors])
 
+  const selectedColor: ProductColor | undefined = useMemo(
+    () => colors.find((c) => c.id === selectedColorId) ?? colors[0],
+    [colors, selectedColorId]
+  )
+
   const selectedSizeRow: SizeStock | undefined = useMemo(
     () =>
       sizeRows.find((r) => r.size === selectedSize) ??
-      sizeRows.find((r) => isSizeAvailable(r, trackSizeQty)),
-    [sizeRows, selectedSize, trackSizeQty]
+      sizeRows.find((r) => isSizeAvailableForColor(selectedColor, r, trackSizeQty)),
+    [sizeRows, selectedSize, selectedColor, trackSizeQty]
   )
 
   const maxQtyForSize = maxQuantityForSize(
@@ -110,27 +116,24 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (sizeRows.length === 0) return
-    const firstAvailable = sizeRows.find((r) => isSizeAvailable(r, trackSizeQty))
+    const firstAvailable = sizeRows.find((r) =>
+      isSizeAvailableForColor(selectedColor, r, trackSizeQty)
+    )
     const pick = firstAvailable?.size || sizeRows[0].size
     setSelectedSize(pick)
-  }, [product?.id, sizeRows, trackSizeQty])
-
-  const selectedColor: ProductColor | undefined = useMemo(
-    () => colors.find((c) => c.id === selectedColorId) ?? colors[0],
-    [colors, selectedColorId]
-  )
+  }, [product?.id, sizeRows, trackSizeQty, selectedColor?.id])
 
   const maxQtyForColor = useMemo(() => {
-    let cap = maxQtyForSize
-    if (
-      selectedColor?.stock !== undefined &&
-      selectedColor.stock > 0 &&
-      !isLeggings
-    ) {
-      cap = Math.min(cap, selectedColor.stock)
+    if (isLeggings) {
+      return maxQtyForSize
     }
-    return cap
-  }, [maxQtyForSize, selectedColor?.stock, isLeggings])
+    const colorCap = maxQtyForColorAndSize(
+      selectedColor,
+      selectedSize,
+      product?.stock && product.stock > 0 ? product.stock : 99
+    )
+    return Math.min(maxQtyForSize, colorCap)
+  }, [maxQtyForSize, selectedColor, selectedSize, isLeggings, product?.stock])
 
   useEffect(() => {
     const cap = maxQtyForColor
@@ -166,18 +169,25 @@ export default function ProductDetail() {
   }
 
   const pickSize = (row: SizeStock) => {
-    if (!isSizeAvailable(row, trackSizeQty)) {
-      setPickError(`Size ${row.size} is out of stock.`)
+    if (!isSizeAvailableForColor(selectedColor, row, trackSizeQty)) {
+      setPickError(
+        selectedColor && !isLeggings
+          ? colorUnavailableMessage(selectedColor, row.size)
+          : `Size ${row.size} is out of stock.`
+      )
       return
     }
     setSelectedSize(row.size)
     setPickError('')
-    const cap = maxQuantityForSize(
+    const productCap = maxQuantityForSize(
       row,
       trackSizeQty,
       product.stock && product.stock > 0 ? product.stock : 99
     )
-    setQuantity((q) => Math.min(Math.max(1, q), cap))
+    const colorCap = isLeggings
+      ? productCap
+      : maxQtyForColorAndSize(selectedColor, row.size, productCap)
+    setQuantity((q) => Math.min(Math.max(1, q), Math.min(productCap, colorCap)))
   }
 
   const validateColors = (): boolean => {
@@ -196,20 +206,26 @@ export default function ProductDetail() {
       }
       return true
     }
-    if (selectedColor && !isColorAvailable(selectedColor)) {
-      setPickError(colorUnavailableMessage(selectedColor))
+    if (selectedColor && !isColorAvailable(selectedColor, selectedSize)) {
+      setPickError(colorUnavailableMessage(selectedColor, selectedSize))
       return false
     }
     return true
   }
 
   const pickDressColor = (c: ProductColor) => {
-    if (!isColorAvailable(c)) {
-      setPickError(colorUnavailableMessage(c))
+    if (!isColorAvailable(c, selectedSize)) {
+      setPickError(colorUnavailableMessage(c, selectedSize))
       return
     }
     setSelectedColorId(c.id)
     setPickError('')
+    const cap = maxQtyForColorAndSize(
+      c,
+      selectedSize,
+      product.stock && product.stock > 0 ? product.stock : 99
+    )
+    if (cap > 0) setQuantity((q) => Math.min(Math.max(1, q), cap))
   }
 
   const pickLeggingColor = (index: number, name: string) => {
@@ -233,16 +249,25 @@ export default function ProductDetail() {
       setPickError('Please select a size.')
       return false
     }
-    if (!isSizeAvailable(row, trackSizeQty)) {
-      setPickError(`Size ${row.size} is out of stock.`)
+    if (!isSizeAvailableForColor(selectedColor, row, trackSizeQty)) {
+      setPickError(
+        selectedColor && !isLeggings
+          ? colorUnavailableMessage(selectedColor, row.size)
+          : `Size ${row.size} is out of stock.`
+      )
       return false
     }
-    if (trackSizeQty && quantity > row.qty) {
-      setPickError(`Only ${row.qty} available in size ${row.size}.`)
-      return false
-    }
-    if (!isLeggings && selectedColor?.stock !== undefined && quantity > selectedColor.stock) {
-      setPickError(`Only ${selectedColor.stock} available in ${selectedColor.name}.`)
+    const cap = maxQtyForColorAndSize(
+      selectedColor,
+      row.size,
+      trackSizeQty ? row.qty : product.stock && product.stock > 0 ? product.stock : 99
+    )
+    if (quantity > cap) {
+      setPickError(
+        cap > 0
+          ? `Only ${cap} available in ${selectedColor?.name || 'this colour'} size ${row.size}.`
+          : `Size ${row.size} is out of stock for ${selectedColor?.name || 'this colour'}.`
+      )
       return false
     }
     return true
@@ -351,8 +376,8 @@ export default function ProductDetail() {
                 <div className="mt-3 flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
                   {colors.map((c) => {
                     const active = selectedColor?.id === c.id
-                    const available = isColorAvailable(c)
-                    const hint = colorStockHint(c)
+                    const available = isColorAvailable(c, selectedSize)
+                    const hint = colorStockHint(c, selectedSize)
                     return (
                       <button
                         key={c.id}
@@ -423,8 +448,8 @@ export default function ProductDetail() {
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 {sizeRows.map((row) => {
-                  const available = isSizeAvailable(row, trackSizeQty)
-                  const hint = sizeStockHint(row, trackSizeQty)
+                  const available = isSizeAvailableForColor(selectedColor, row, trackSizeQty)
+                  const hint = sizeStockHintForColor(selectedColor, row, trackSizeQty)
                   const active = selectedSize === row.size
                   return (
                     <button
@@ -537,7 +562,11 @@ export default function ProductDetail() {
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleAddToCart}
-                disabled={!selectedSizeRow || !isSizeAvailable(selectedSizeRow, trackSizeQty)}
+                disabled={
+                  !selectedSizeRow ||
+                  !isSizeAvailableForColor(selectedColor, selectedSizeRow, trackSizeQty) ||
+                  maxQtyForColor === 0
+                }
                 className="inline-flex items-center justify-center gap-2 h-[52px] px-8 bg-black text-gold-light font-body text-[14px] font-medium uppercase tracking-[0.06em] border border-gold/40 transition-all hover:bg-gold-gradient hover:text-black hover:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {added ? (
@@ -554,7 +583,11 @@ export default function ProductDetail() {
               </button>
               <button
                 onClick={handleBuyNow}
-                disabled={!selectedSizeRow || !isSizeAvailable(selectedSizeRow, trackSizeQty)}
+                disabled={
+                  !selectedSizeRow ||
+                  !isSizeAvailableForColor(selectedColor, selectedSizeRow, trackSizeQty) ||
+                  maxQtyForColor === 0
+                }
                 className="inline-flex items-center justify-center h-[52px] px-8 border border-black text-black font-body text-[14px] font-medium uppercase tracking-[0.06em] transition-colors hover:bg-black hover:text-gold-light disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Buy Now

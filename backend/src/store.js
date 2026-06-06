@@ -56,6 +56,14 @@ const ProductColorSchema = z
     images: z.array(z.string().min(1)).max(3).optional(),
     swatchHex: z.string().optional(),
     stock: z.number().int().nonnegative().optional(),
+    sizeStock: z
+      .array(
+        z.object({
+          size: z.string().min(1),
+          qty: z.number().int().nonnegative(),
+        })
+      )
+      .optional(),
     outOfStock: z.boolean().optional(),
   })
   .transform((c) => normalizeColorRecord(c))

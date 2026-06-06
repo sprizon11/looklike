@@ -1,4 +1,9 @@
 import { applyColorAvailability } from '@/lib/color-stock'
+import type { ColorSizeStock } from '@/lib/color-size-stock'
+import {
+  normalizeColorSizeStockForSave,
+  totalColorSizeStock,
+} from '@/lib/color-size-stock'
 import { LEGGINGS_COLOR_CATALOG, leggingsColorLabel } from '@/lib/leggings-color-catalog'
 import { leggingsSwatchHex } from '@/lib/leggings-swatch-colors'
 
@@ -78,6 +83,8 @@ export type ProductColor = {
   /** Hex fill when no swatch image (leggings picker) */
   swatchHex?: string
   stock?: number
+  /** Quantity per size for this colour */
+  sizeStock?: ColorSizeStock[]
   outOfStock?: boolean
 }
 
@@ -248,6 +255,9 @@ export function normalizeProductColors(
         name: c.name.trim(),
         images,
         image: images[0],
+        ...(c.sizeStock?.length
+          ? { sizeStock: normalizeColorSizeStockForSave(c.sizeStock) }
+          : {}),
         ...(c.stock !== undefined ? { stock: Math.max(0, Number(c.stock) || 0) } : {}),
         ...(c.outOfStock ? { outOfStock: true } : {}),
       })
@@ -261,13 +271,24 @@ export function normalizeProductColors(
 
 export function serializeColorForSave(color: ProductColor): ProductColor {
   const images = colorImages(color)
+  const sizeStock = color.sizeStock?.length
+    ? normalizeColorSizeStockForSave(color.sizeStock)
+    : undefined
+  const totalFromSizes = sizeStock?.length ? totalColorSizeStock({ ...color, sizeStock }) : undefined
+  const stock =
+    totalFromSizes !== undefined
+      ? totalFromSizes
+      : color.stock !== undefined
+        ? Math.max(0, Number(color.stock) || 0)
+        : undefined
   return {
     id: color.id,
     name: color.name.trim(),
     images,
     image: images[0],
-    ...(color.stock !== undefined ? { stock: Math.max(0, Number(color.stock) || 0) } : {}),
-    ...(color.outOfStock ? { outOfStock: true } : {}),
+    ...(sizeStock?.length ? { sizeStock } : {}),
+    ...(stock !== undefined ? { stock } : {}),
+    ...(stock === 0 || color.outOfStock ? { outOfStock: true } : {}),
   }
 }
 

@@ -67,6 +67,14 @@ const ProductColorSchema = z
     images: z.array(z.string().min(1)).max(3).optional(),
     swatchHex: z.string().optional(),
     stock: z.number().int().nonnegative().optional(),
+    sizeStock: z
+      .array(
+        z.object({
+          size: z.string().min(1),
+          qty: z.number().int().nonnegative(),
+        })
+      )
+      .optional(),
     outOfStock: z.boolean().optional(),
   })
   .transform((c) => normalizeColorRecord(c))
@@ -93,6 +101,14 @@ function normalizeColorRecord(c) {
         name: c.name,
         ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
         ...(c.stock !== undefined ? { stock: c.stock } : {}),
+        ...(Array.isArray(c.sizeStock) && c.sizeStock.length > 0
+          ? {
+              sizeStock: c.sizeStock.map((r) => ({
+                size: r.size.trim(),
+                qty: Math.max(0, Number(r.qty) || 0),
+              })),
+            }
+          : {}),
         ...(c.outOfStock ? { outOfStock: true } : {}),
       }
     }
@@ -105,6 +121,14 @@ function normalizeColorRecord(c) {
     image: images[0],
     ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
     ...(c.stock !== undefined ? { stock: c.stock } : {}),
+    ...(Array.isArray(c.sizeStock) && c.sizeStock.length > 0
+      ? {
+          sizeStock: c.sizeStock.map((r) => ({
+            size: r.size.trim(),
+            qty: Math.max(0, Number(r.qty) || 0),
+          })),
+        }
+      : {}),
     ...(c.outOfStock ? { outOfStock: true } : {}),
   }
 }
@@ -489,6 +513,51 @@ async function decrementProductStockForOrderItems(items) {
 
     const qty = Math.max(1, Number(item.quantity) || 1)
     const size = (item.size || '').trim()
+    const colorName = (item.color || '').trim()
+
+    if (colorName && Array.isArray(existing.colors) && existing.colors.length > 0) {
+      const colorIdx = existing.colors.findIndex(
+        (c) => (c.name || '').trim().toLowerCase() === colorName.toLowerCase()
+      )
+      if (colorIdx >= 0) {
+        const color = existing.colors[colorIdx]
+        if (Array.isArray(color.sizeStock) && color.sizeStock.length > 0 && size) {
+          const nextColorSizeStock = color.sizeStock.map((r) => {
+            if ((r.size || '').trim() !== size) return r
+            const nextQty = Math.max(0, (Number(r.qty) || 0) - qty)
+            return { ...r, qty: nextQty }
+          })
+          const colorTotal = nextColorSizeStock.reduce(
+            (n, r) => n + Math.max(0, Number(r.qty) || 0),
+            0
+          )
+          const nextColor = {
+            ...color,
+            sizeStock: nextColorSizeStock,
+            stock: colorTotal,
+            ...(colorTotal <= 0 ? { outOfStock: true } : {}),
+          }
+          const nextColors = [...existing.colors]
+          nextColors[colorIdx] = nextColor
+          const productTotal = nextColors.reduce((n, c) => n + Math.max(0, Number(c.stock) || 0), 0)
+          updates.set(pid, { ...existing, colors: nextColors, stock: productTotal })
+          continue
+        }
+        if (color.stock !== undefined) {
+          const nextColorStock = Math.max(0, (Number(color.stock) || 0) - qty)
+          const nextColor = {
+            ...color,
+            stock: nextColorStock,
+            ...(nextColorStock <= 0 ? { outOfStock: true } : {}),
+          }
+          const nextColors = [...existing.colors]
+          nextColors[colorIdx] = nextColor
+          const productTotal = nextColors.reduce((n, c) => n + Math.max(0, Number(c.stock) || 0), 0)
+          updates.set(pid, { ...existing, colors: nextColors, stock: productTotal })
+          continue
+        }
+      }
+    }
 
     if (Array.isArray(existing.sizeStock) && existing.sizeStock.length > 0 && size) {
       const nextRows = existing.sizeStock.map((r) => {
