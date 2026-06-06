@@ -21,7 +21,7 @@ import {
 import { maxQtyForColorAndSize } from '@/lib/color-size-stock'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
-import { withImageWidth, GRID_IMAGE_W } from '@/lib/image-url'
+import { withImageWidth } from '@/lib/image-url'
 import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
 const MAX_QTY = 10
@@ -231,7 +231,7 @@ export default function FeaturedDetail() {
                             loading="lazy"
                             decoding="async"
                             onError={(e) => {
-                              const fb = withImageWidth(item.image, GRID_IMAGE_W)
+                              const fb = withImageWidth(item.image) || item.image
                               if (fb && e.currentTarget.src !== fb) e.currentTarget.src = fb
                             }}
                             className="w-full h-full object-cover"

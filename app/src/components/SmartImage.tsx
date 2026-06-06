@@ -8,8 +8,6 @@ type Props = {
   /** Eager-load above-the-fold images; others lazy-load. */
   priority?: boolean
   sizes?: string
-  /** Request a smaller server thumbnail for API image URLs. */
-  imageWidth?: number
 }
 
 /**
@@ -22,11 +20,10 @@ export default function SmartImage({
   className = '',
   priority = false,
   sizes,
-  imageWidth,
 }: Props) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
-  const resolvedSrc = useMemo(() => withImageWidth(src, imageWidth), [src, imageWidth])
+  const resolvedSrc = useMemo(() => withImageWidth(src), [src])
 
   useEffect(() => {
     setLoaded(false)

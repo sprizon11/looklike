@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useProducts } from '@/hooks/use-products'
-import { DETAIL_IMAGE_W, withImageWidth } from '@/lib/image-url'
+import { withImageWidth } from '@/lib/image-url'
 import { prefetchProductImages } from '@/lib/preload-image'
 import { scrollPageToTop } from '@/lib/scroll-page-top'
 import SmartImage from '@/components/SmartImage'
@@ -142,7 +142,7 @@ export default function ProductsGrid({
   useEffect(() => {
     const links: HTMLLinkElement[] = []
     for (const product of visible.slice(0, 4)) {
-      const href = withImageWidth(product.image, DETAIL_IMAGE_W)
+      const href = withImageWidth(product.image)
       if (!href) continue
       const link = document.createElement('link')
       link.rel = 'prefetch'

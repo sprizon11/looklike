@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { DETAIL_IMAGE_W, GRID_IMAGE_W, withImageWidth } from '@/lib/image-url'
+import { withImageWidth } from '@/lib/image-url'
 
 const AUTO_MS = 4500
 
@@ -8,33 +8,19 @@ type Props = {
   images: string[]
   alt: string
   className?: string
-  /** Resize API photos for detail view without downloading full originals. */
-  imageWidth?: number
 }
 
-export default function ProductImageCarousel({
-  images,
-  alt,
-  className = '',
-  imageWidth = DETAIL_IMAGE_W,
-}: Props) {
-  const rawSlides = useMemo(() => images.filter(Boolean), [images])
+export default function ProductImageCarousel({ images, alt, className = '' }: Props) {
   const slides = useMemo(
-    () => rawSlides.map((src) => withImageWidth(src, imageWidth) || src),
-    [rawSlides, imageWidth]
-  )
-  const placeholders = useMemo(
-    () => rawSlides.map((src) => withImageWidth(src, GRID_IMAGE_W) || src),
-    [rawSlides]
+    () => images.filter(Boolean).map((src) => withImageWidth(src) || src),
+    [images]
   )
 
   const [index, setIndex] = useState(0)
-  const [hiResReady, setHiResReady] = useState<Record<number, boolean>>({})
   const pauseUntilRef = useRef(0)
 
   useEffect(() => {
     setIndex(0)
-    setHiResReady({})
   }, [slides.join('|')])
 
   const go = useCallback(
@@ -77,41 +63,20 @@ export default function ProductImageCarousel({
   return (
     <div className={`relative bg-[#f7f7f7] overflow-hidden group ${className}`}>
       <div className="aspect-[3/4] relative">
-        {slides.map((src, i) => {
-          const placeholder = placeholders[i]
-          const showPlaceholder = placeholder && placeholder !== src
-          const hiResLoaded = hiResReady[i] || !showPlaceholder
-          return (
-            <div
-              key={`${src}-${i}`}
-              className={`absolute inset-0 transition-opacity duration-500 ${
-                i === index ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
-              }`}
-            >
-              {showPlaceholder ? (
-                <img
-                  src={placeholder}
-                  alt=""
-                  aria-hidden
-                  decoding="async"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              ) : null}
-              <img
-                src={src}
-                alt={i === index ? alt : ''}
-                loading={i === 0 ? 'eager' : 'lazy'}
-                decoding="async"
-                // @ts-expect-error fetchpriority is a valid HTML attribute
-                fetchpriority={i === 0 ? 'high' : 'auto'}
-                onLoad={() => setHiResReady((s) => ({ ...s, [i]: true }))}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                  hiResLoaded ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-            </div>
-          )
-        })}
+        {slides.map((src, i) => (
+          <img
+            key={`${src}-${i}`}
+            src={src}
+            alt={i === index ? alt : ''}
+            loading={i === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            // @ts-expect-error fetchpriority is a valid HTML attribute
+            fetchpriority={i === 0 ? 'high' : 'auto'}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+              i === index ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
+            }`}
+          />
+        ))}
       </div>
 
       {slides.length > 1 && (

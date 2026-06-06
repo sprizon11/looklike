@@ -265,8 +265,6 @@ function decodeDataUrl(value) {
 }
 
 const GRID_THUMB_W = 420
-const COLOR_THUMB_W = 420
-const DEFAULT_IMAGE_W = 720
 const IMAGE_CACHE_MAX = 300
 const imageBufferCache = new Map()
 
@@ -287,8 +285,7 @@ function parseImageWidth(raw) {
 }
 
 function resolveImageWidth(raw) {
-  const parsed = parseImageWidth(raw)
-  return parsed > 0 ? parsed : DEFAULT_IMAGE_W
+  return parseImageWidth(raw)
 }
 
 function getCachedImage(key) {
@@ -371,12 +368,12 @@ async function sendProductImage(res, value, width = 0, cacheKey = '') {
 function leanProduct(p) {
   const v = p.updatedAt || 0
   const mainUrl = isDataUrl(p.image)
-    ? `/api/products/${p.id}/image?v=${v}&w=${GRID_THUMB_W}`
+    ? `/api/products/${p.id}/image?v=${v}`
     : p.image
 
   const galleryImages = Array.isArray(p.galleryImages)
     ? p.galleryImages.map((img, i) =>
-        isDataUrl(img) ? `/api/products/${p.id}/gallery/${i}?v=${v}&w=${COLOR_THUMB_W}` : img
+        isDataUrl(img) ? `/api/products/${p.id}/gallery/${i}?v=${v}` : img
       )
     : p.galleryImages
 
@@ -385,12 +382,12 @@ function leanProduct(p) {
         const images = Array.isArray(c.images)
           ? c.images.map((img, i) =>
               isDataUrl(img)
-                ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/${i}?v=${v}&w=${COLOR_THUMB_W}`
+                ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/${i}?v=${v}`
                 : img
             )
           : c.images
         const image = isDataUrl(c.image)
-          ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/0?v=${v}&w=${COLOR_THUMB_W}`
+          ? `/api/products/${p.id}/color-image/${encodeURIComponent(c.id)}/0?v=${v}`
           : c.image || (Array.isArray(images) ? images[0] : undefined)
         return { ...c, images, image }
       })

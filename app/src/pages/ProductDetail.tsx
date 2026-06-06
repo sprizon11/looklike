@@ -34,7 +34,7 @@ import ProductImageCarousel from '@/components/ProductImageCarousel'
 import LeggingsColorStrip from '@/components/LeggingsColorStrip'
 import SizeGuidePanel from '@/components/SizeGuidePanel'
 import { hasSizeGuide, supportsSizeGuide } from '@/lib/size-guide'
-import { DETAIL_IMAGE_W, withImageWidth } from '@/lib/image-url'
+import { withImageWidth } from '@/lib/image-url'
 import { prefetchProductImages } from '@/lib/preload-image'
 import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
@@ -472,10 +472,8 @@ export default function ProductDetail() {
                             loading="lazy"
                             decoding="async"
                             onError={(e) => {
-                              const fb = withImageWidth(product.image, DETAIL_IMAGE_W)
-                              if (fb && e.currentTarget.src !== fb) {
-                                e.currentTarget.src = withImageWidth(product.image, 420) || product.image
-                              }
+                              const fb = withImageWidth(product.image) || product.image
+                              if (fb && e.currentTarget.src !== fb) e.currentTarget.src = fb
                             }}
                             className="w-full h-full object-cover"
                           />
