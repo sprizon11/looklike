@@ -60,6 +60,14 @@ export default function Hero() {
         <h1 className="font-display text-white text-[38px] sm:text-[52px] md:text-[64px] font-normal leading-[1.05] tracking-[-0.02em] max-w-[820px] mx-auto text-balance">
           Effortless Style for <span className="italic font-medium gold-text">Every Woman</span>
         </h1>
+        <div className="mt-5 space-y-1">
+          <p className="font-display text-[22px] sm:text-[26px] md:text-[30px] italic font-medium gold-text leading-tight">
+            style ah choose pannunga
+          </p>
+          <p className="font-display text-[22px] sm:text-[26px] md:text-[30px] italic font-medium gold-text leading-tight">
+            look ah change pannunga
+          </p>
+        </div>
         <p className="font-body text-white/85 text-[15px] sm:text-[16px] font-light leading-[1.7] max-w-[520px] mt-6 mx-auto">
           Discover our curated collection of kurtis, leggings, and palazzos. Premium fabrics, timeless designs, delivered to your doorstep.
         </p>
