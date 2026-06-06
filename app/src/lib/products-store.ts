@@ -94,6 +94,7 @@ export function stripProductsForLocalCache(list: Product[]): Product[] {
         name: c.name,
         ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
         ...(c.stock !== undefined ? { stock: c.stock } : {}),
+        ...(c.sizeStock?.length ? { sizeStock: c.sizeStock } : {}),
         ...(c.outOfStock ? { outOfStock: c.outOfStock } : {}),
         ...(img ? { image: img, images: imgs.length > 0 ? imgs : [img] } : {}),
       }

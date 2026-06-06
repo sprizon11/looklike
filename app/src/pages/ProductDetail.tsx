@@ -20,7 +20,7 @@ import {
   isSizeAvailableForColor,
   sizeStockHintForColor,
 } from '@/lib/color-stock'
-import { maxQtyForColorAndSize } from '@/lib/color-size-stock'
+import { maxQtyForColorAndSize, colorHasSizeStock } from '@/lib/color-size-stock'
 import {
   getProductSizeStock,
   hasExplicitSizeStock,
@@ -138,8 +138,14 @@ export default function ProductDetail() {
     const productCap =
       product?.stock && product.stock > 0 ? product.stock : 99
     if (isLeggings) {
+      if (activeLeggingColor && colorHasSizeStock(activeLeggingColor)) {
+        return maxQtyForColorAndSize(activeLeggingColor, selectedSize, productCap)
+      }
       const colorCap = maxQtyForColorAndSize(activeLeggingColor, selectedSize, productCap)
       return Math.min(maxQtyForSize, colorCap)
+    }
+    if (selectedColor && colorHasSizeStock(selectedColor)) {
+      return maxQtyForColorAndSize(selectedColor, selectedSize, productCap)
     }
     const colorCap = maxQtyForColorAndSize(selectedColor, selectedSize, productCap)
     return Math.min(maxQtyForSize, colorCap)
@@ -195,7 +201,11 @@ export default function ProductDetail() {
       product.stock && product.stock > 0 ? product.stock : 99
     )
     const colorCap = maxQtyForColorAndSize(colorForSizeUi, row.size, productCap)
-    setQuantity((q) => Math.min(Math.max(1, q), Math.min(productCap, colorCap)))
+    const cap =
+      colorForSizeUi && colorHasSizeStock(colorForSizeUi)
+        ? colorCap
+        : Math.min(productCap, colorCap)
+    setQuantity((q) => Math.min(Math.max(1, q), cap))
   }
 
   const validateColors = (): boolean => {
@@ -297,11 +307,16 @@ export default function ProductDetail() {
       return true
     }
 
-    const cap = maxQtyForColorAndSize(
-      selectedColor,
-      row.size,
-      trackSizeQty ? row.qty : product.stock && product.stock > 0 ? product.stock : 99
-    )
+    const productCap =
+      trackSizeQty && row.qty > 0 ? row.qty : product.stock && product.stock > 0 ? product.stock : 99
+    const cap =
+      selectedColor && colorHasSizeStock(selectedColor)
+        ? maxQtyForColorAndSize(selectedColor, row.size, productCap)
+        : maxQtyForColorAndSize(
+            selectedColor,
+            row.size,
+            trackSizeQty ? row.qty : product.stock && product.stock > 0 ? product.stock : 99
+          )
     if (quantity > cap) {
       setPickError(
         cap > 0
@@ -407,6 +422,8 @@ export default function ProductDetail() {
             <p className="font-body text-[22px] font-semibold text-gold-dark mt-3">
               Rs. {product.price}
             </p>
+
+            <OrderDisclaimer className="mt-5" compact />
 
             {showDressColorPicker && (
               <div className="mt-8">
@@ -596,8 +613,6 @@ export default function ProductDetail() {
                 className="mt-5"
               />
             )}
-
-            <OrderDisclaimer className="mt-6" compact />
 
             {pickError && <p className="mt-4 font-body text-[13px] text-red-600">{pickError}</p>}
 

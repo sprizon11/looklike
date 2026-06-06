@@ -34,6 +34,15 @@ function normalizeColorRecord(c) {
         name: c.name,
         ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
         ...(c.stock !== undefined ? { stock: c.stock } : {}),
+        ...(Array.isArray(c.sizeStock) && c.sizeStock.length > 0
+          ? {
+              sizeStock: c.sizeStock.map((r) => ({
+                size: String(r.size).trim(),
+                qty: Math.max(0, Number(r.qty) || 0),
+              })),
+            }
+          : {}),
+        ...(c.outOfStock ? { outOfStock: true } : {}),
       }
     }
     throw new Error('Each colour needs at least one image')
@@ -45,6 +54,15 @@ function normalizeColorRecord(c) {
     image: images[0],
     ...(c.swatchHex ? { swatchHex: c.swatchHex } : {}),
     ...(c.stock !== undefined ? { stock: c.stock } : {}),
+    ...(Array.isArray(c.sizeStock) && c.sizeStock.length > 0
+      ? {
+          sizeStock: c.sizeStock.map((r) => ({
+            size: String(r.size).trim(),
+            qty: Math.max(0, Number(r.qty) || 0),
+          })),
+        }
+      : {}),
+    ...(c.outOfStock ? { outOfStock: true } : {}),
   }
 }
 

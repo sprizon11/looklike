@@ -188,6 +188,8 @@ export default function FeaturedDetail() {
               Rs. {item.price}
             </p>
 
+            <OrderDisclaimer className="mt-5" compact />
+
             {showColorPicker && (
               <div className="mt-8">
                 <p className="font-body text-[14px] text-black">
@@ -321,8 +323,6 @@ export default function FeaturedDetail() {
                 {item.description}
               </p>
             )}
-
-            <OrderDisclaimer className="mt-6" compact />
 
             {pickError && <p className="mt-4 font-body text-[13px] text-red-600">{pickError}</p>}
 
