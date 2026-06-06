@@ -1,5 +1,6 @@
 import { applyColorAvailability } from '@/lib/color-stock'
 import type { ColorSizeStock } from '@/lib/color-size-stock'
+import { SWATCH_IMAGE_W, withImageWidth } from '@/lib/image-url'
 import {
   normalizeColorSizeStockForSave,
   totalColorSizeStock,
@@ -107,6 +108,27 @@ export function colorImages(color: ProductColor): string[] {
 
 export function primaryColorImage(color: ProductColor): string {
   return colorImages(color)[0] || ''
+}
+
+/** Colour swatch URL with product-level fallback when a per-colour image is missing. */
+export function colorThumbnailUrl(
+  color: ProductColor,
+  product: { image: string; galleryImages?: string[] },
+  width = SWATCH_IMAGE_W
+): string {
+  const colorImg = primaryColorImage(color)
+  const fallback = productGalleryImages(product)[0] || product.image?.trim() || ''
+  const src = colorImg || fallback
+  return withImageWidth(src, width) || withImageWidth(fallback, width) || fallback
+}
+
+export function colorGalleryWithFallback(
+  color: ProductColor | undefined,
+  product: { image: string; galleryImages?: string[] }
+): string[] {
+  const fromColor = color ? colorImages(color) : []
+  if (fromColor.length > 0) return fromColor
+  return productGalleryImages(product)
 }
 
 export function isDefaultColorName(name: string) {

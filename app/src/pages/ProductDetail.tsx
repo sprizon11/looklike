@@ -5,12 +5,12 @@ import { useProducts } from '@/hooks/use-products'
 import { cartImageRef } from '@/lib/cart-image'
 import { addToCart, CartStorageError } from '@/lib/cart-store'
 import {
-  colorImages,
   getCustomerColorOptions,
   isDefaultColorName,
   isLeggingsCatalogProduct,
+  colorGalleryWithFallback,
+  colorThumbnailUrl,
   primaryColorImage,
-  productGalleryImages,
   type ProductColor,
 } from '@/lib/product-colors'
 import {
@@ -34,7 +34,7 @@ import ProductImageCarousel from '@/components/ProductImageCarousel'
 import LeggingsColorStrip from '@/components/LeggingsColorStrip'
 import SizeGuidePanel from '@/components/SizeGuidePanel'
 import { hasSizeGuide, supportsSizeGuide } from '@/lib/size-guide'
-import { SWATCH_IMAGE_W, withImageWidth } from '@/lib/image-url'
+import { DETAIL_IMAGE_W, withImageWidth } from '@/lib/image-url'
 import { prefetchProductImages } from '@/lib/preload-image'
 import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
@@ -179,10 +179,9 @@ export default function ProductDetail() {
     if (isLeggings) {
       const activeName = pieceColors[0] || ''
       const row = activeName ? colors.find((c) => c.name === activeName) : undefined
-      if (row && colorImages(row).length > 0) return colorImages(row)
-      return productGalleryImages(product)
+      return colorGalleryWithFallback(row, product)
     }
-    return selectedColor ? colorImages(selectedColor) : productGalleryImages(product)
+    return colorGalleryWithFallback(selectedColor, product)
   }, [isLeggings, selectedColor, product, colors, pieceColors])
 
   const activeImage = galleryImages[0] || product?.image || ''
@@ -468,10 +467,16 @@ export default function ProductDetail() {
                       >
                         <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
                           <img
-                            src={withImageWidth(primaryColorImage(c), SWATCH_IMAGE_W)}
+                            src={colorThumbnailUrl(c, product)}
                             alt={c.name}
                             loading="lazy"
                             decoding="async"
+                            onError={(e) => {
+                              const fb = withImageWidth(product.image, DETAIL_IMAGE_W)
+                              if (fb && e.currentTarget.src !== fb) {
+                                e.currentTarget.src = withImageWidth(product.image, 420) || product.image
+                              }
+                            }}
                             className="w-full h-full object-cover"
                           />
                         </div>

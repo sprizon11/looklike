@@ -6,7 +6,8 @@ import { getFeaturedColorOptions } from '@/lib/featured-store'
 import { cartImageRef } from '@/lib/cart-image'
 import { addToCart } from '@/lib/cart-store'
 import {
-  colorImages,
+  colorGalleryWithFallback,
+  colorThumbnailUrl,
   primaryColorImage,
   type ProductColor,
 } from '@/lib/product-colors'
@@ -20,7 +21,7 @@ import {
 import { maxQtyForColorAndSize } from '@/lib/color-size-stock'
 import OrderDisclaimer from '@/components/OrderDisclaimer'
 import ProductImageCarousel from '@/components/ProductImageCarousel'
-import { SWATCH_IMAGE_W, withImageWidth } from '@/lib/image-url'
+import { withImageWidth, GRID_IMAGE_W } from '@/lib/image-url'
 import { scrollPageToTop, scrollPageToTopAfterPaint } from '@/lib/scroll-page-top'
 
 const MAX_QTY = 10
@@ -96,7 +97,7 @@ export default function FeaturedDetail() {
   }
 
   const galleryImages = selectedColor
-    ? colorImages(selectedColor)
+    ? colorGalleryWithFallback(selectedColor, item)
     : item.image
       ? [item.image]
       : []
@@ -225,10 +226,14 @@ export default function FeaturedDetail() {
                       >
                         <div className="aspect-[3/4] bg-[#f5f5f5] overflow-hidden">
                           <img
-                            src={withImageWidth(primaryColorImage(c), SWATCH_IMAGE_W)}
+                            src={colorThumbnailUrl(c, item)}
                             alt={c.name}
                             loading="lazy"
                             decoding="async"
+                            onError={(e) => {
+                              const fb = withImageWidth(item.image, GRID_IMAGE_W)
+                              if (fb && e.currentTarget.src !== fb) e.currentTarget.src = fb
+                            }}
                             className="w-full h-full object-cover"
                           />
                         </div>

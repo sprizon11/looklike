@@ -335,6 +335,10 @@ async function sendProductImage(res, value, width = 0, cacheKey = '') {
     return
   }
   if (!isDataUrl(value)) {
+    if (isInternalImageUrl(value)) {
+      res.status(404).end()
+      return
+    }
     res.redirect(302, value)
     return
   }
@@ -397,6 +401,40 @@ function leanProduct(p) {
 
 function isInternalImageUrl(value) {
   return typeof value === 'string' && /^\/api\/products\/.+\/(image|gallery|color-image)/.test(value)
+}
+
+function firstDataUrl(...values) {
+  for (const v of values) {
+    if (typeof v === 'string' && isDataUrl(v)) return v
+  }
+  return null
+}
+
+function findProductColor(product, colorIdParam) {
+  const colors = product.colors || []
+  let decoded = colorIdParam
+  try {
+    decoded = decodeURIComponent(colorIdParam)
+  } catch {
+    // keep raw param
+  }
+  return (
+    colors.find((c) => c.id === colorIdParam) ||
+    colors.find((c) => c.id === decoded) ||
+    colors.find((c) => encodeURIComponent(c.id) === colorIdParam)
+  )
+}
+
+function resolveColorImageData(product, color, slot) {
+  const slotIdx = Number(slot) || 0
+  return (
+    firstDataUrl(
+      color?.images?.[slotIdx],
+      slotIdx === 0 ? color?.image : undefined,
+      ...(color?.images || []),
+      color?.image
+    ) || firstDataUrl(product.image, ...(product.galleryImages || []))
+  )
 }
 
 /**
@@ -960,9 +998,9 @@ app.get('/api/products/:id/color-image/:colorId/:slot', async (req, res) => {
     res.status(404).end()
     return
   }
-  const color = product.colors?.find((c) => c.id === req.params.colorId)
+  const color = findProductColor(product, req.params.colorId)
   const slot = Number(req.params.slot)
-  const value = color?.images?.[slot] || (slot === 0 ? color?.image : undefined)
+  const value = resolveColorImageData(product, color, slot)
   const width = resolveImageWidth(req.query.w)
   const cacheKey = `${product.id}:color:${req.params.colorId}:${slot}:${product.updatedAt}:${width}`
   await sendProductImage(res, value, width, cacheKey)
