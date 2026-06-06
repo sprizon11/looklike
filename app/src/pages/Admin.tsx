@@ -81,13 +81,16 @@ import {
   validateKurtiDetails,
 } from '@/lib/kurti-details'
 import {
+  buildLabelOnlySizeStock,
   defaultSizeStockRows,
   getProductSizeStock,
-  normalizeSizeStockForSave,
   parseSizeList,
   sizeStockToLegacyString,
 } from '@/lib/product-sizes'
-import { syncColorSizeStockWithLabels } from '@/lib/color-size-stock'
+import {
+  syncColorSizeStockWithLabels,
+  totalProductStockFromColors,
+} from '@/lib/color-size-stock'
 import {
   defaultSizeGuideForCategory,
   normalizeSizeGuide,
@@ -117,7 +120,6 @@ export default function Admin() {
     name: '',
     category: 'Kurti',
     price: '0',
-    stock: '0',
     size: '',
     sizeStock: defaultSizeStockRows(),
     description: '',
@@ -270,7 +272,6 @@ export default function Admin() {
       name: '',
       category: 'Kurti',
       price: '0',
-      stock: '0',
       size: '',
       sizeStock: defaultSizeStockRows(),
       description: '',
@@ -316,7 +317,6 @@ export default function Admin() {
       name: p.name,
       category: cat,
       price: String(p.price),
-      stock: String(p.stock),
       image: p.image,
       galleryImages: gallery,
       size: p.size || '',
@@ -444,8 +444,8 @@ export default function Admin() {
     const category = productForm.category.trim()
     const resolvedCategory = category
     const price = Number(productForm.price)
-    const stock = Number(productForm.stock)
-    const sizeStock = normalizeSizeStockForSave(productForm.sizeStock)
+    const sizeLabels = productForm.sizeStock.map((r) => r.size.trim()).filter(Boolean)
+    const sizeStock = buildLabelOnlySizeStock(sizeLabels)
     const size = sizeStockToLegacyString(sizeStock)
     const description = productForm.description.trim()
     const weightKg = Number(productForm.weightKg)
@@ -510,10 +510,6 @@ export default function Admin() {
       setProductError('Price must be a valid number')
       return
     }
-    if (!Number.isFinite(stock) || stock < 0) {
-      setProductError('Stock must be a valid number')
-      return
-    }
     if (!isLeggings && colors.length === 0) {
       setProductError('Add at least one colour with name and at least one photo')
       return
@@ -523,9 +519,11 @@ export default function Admin() {
       return
     }
     if (sizeStock.length === 0) {
-      setProductError('Add at least one size with quantity or mark out of stock')
+      setProductError('Add at least one size (S, M, L, etc.)')
       return
     }
+
+    const stock = totalProductStockFromColors(colors)
 
     setProductError('')
     const derivedOos = colors.filter((c) => c.outOfStock).map((c) => c.name)
@@ -583,15 +581,31 @@ export default function Admin() {
     const ok = window.confirm(`Mark "${p.name}" as OUT OF STOCK for customers?`)
     if (!ok) return
 
-    const rows = getProductSizeStock(p).map((r) => ({ ...r, qty: 0, outOfStock: true }))
+    const sizeLabels = getProductSizeStock(p).map((r) => r.size.trim()).filter(Boolean)
+    const sizeStock = buildLabelOnlySizeStock(sizeLabels).map((r) => ({
+      ...r,
+      outOfStock: true,
+    }))
     const outOfStockColors = isLeggingsCatalogProduct(p)
       ? buildLeggingsProductColorsLean().map((c) => c.name)
       : undefined
 
+    const colors = (p.colors || []).map((c) =>
+      serializeColorForSave({
+        ...c,
+        sizeStock: syncColorSizeStockWithLabels(c.sizeStock, sizeLabels).map((r) => ({
+          ...r,
+          qty: 0,
+        })),
+        outOfStock: true,
+      })
+    )
+
     try {
       await updateProduct(p.id, {
         stock: 0,
-        sizeStock: rows,
+        sizeStock,
+        colors,
         ...(outOfStockColors ? { outOfStockColors } : {}),
       })
     } catch (e) {
@@ -1559,16 +1573,6 @@ export default function Admin() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Stock</label>
-                  <input
-                    inputMode="numeric"
-                    value={productForm.stock}
-                    onChange={(e) => setProductForm((s) => ({ ...s, stock: e.target.value }))}
-                    className="w-full mt-1 h-[42px] px-3 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                    placeholder="24"
-                  />
-                </div>
-                <div>
                   <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">Weight (kg)</label>
                   <input
                     inputMode="decimal"
@@ -1582,15 +1586,26 @@ export default function Admin() {
                 <div className="sm:col-span-2">
                   <div className="flex items-center justify-between gap-2">
                     <label className="font-body text-[12px] uppercase tracking-[0.06em] text-black/50">
-                      Sizes — quantity per size
+                      Sizes
                     </label>
                     <button
                       type="button"
                       onClick={() =>
-                        setProductForm((s) => ({
-                          ...s,
-                          sizeStock: [...s.sizeStock, { size: '', qty: 0, outOfStock: false }],
-                        }))
+                        setProductForm((s) => {
+                          const sizeStock = [
+                            ...s.sizeStock,
+                            { size: '', qty: 0, outOfStock: false },
+                          ]
+                          const sizeLabels = sizeStock.map((r) => r.size)
+                          return {
+                            ...s,
+                            sizeStock,
+                            colors: s.colors.map((c) => ({
+                              ...c,
+                              sizeStock: syncColorSizeStockWithLabels(c.sizeStock, sizeLabels),
+                            })),
+                          }
+                        })
                       }
                       className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
                     >
@@ -1598,68 +1613,53 @@ export default function Admin() {
                     </button>
                   </div>
                   <p className="font-body text-[11px] text-black/35 mt-1 mb-2">
-                    Set how many pieces you have in each size. Tick out of stock when none left.
+                    Add size labels only (S, M, L, XL…). Set quantity per colour and size in each colour block below.
                   </p>
                   <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                     {productForm.sizeStock.map((row, idx) => (
                       <div
                         key={`${row.size}-${idx}`}
-                        className="grid grid-cols-[1fr_88px_auto_auto] gap-2 items-center p-2 border border-black/10"
+                        className="grid grid-cols-[1fr_auto] gap-2 items-center p-2 border border-black/10"
                       >
                         <input
                           value={row.size}
                           onChange={(e) =>
-                            setProductForm((s) => ({
-                              ...s,
-                              sizeStock: s.sizeStock.map((r, i) =>
+                            setProductForm((s) => {
+                              const sizeStock = s.sizeStock.map((r, i) =>
                                 i === idx ? { ...r, size: e.target.value } : r
-                              ),
-                            }))
+                              )
+                              const sizeLabels = sizeStock.map((r) => r.size)
+                              return {
+                                ...s,
+                                sizeStock,
+                                colors: s.colors.map((c) => ({
+                                  ...c,
+                                  sizeStock: syncColorSizeStockWithLabels(c.sizeStock, sizeLabels),
+                                })),
+                              }
+                            })
                           }
                           placeholder="e.g. S"
                           className="h-[36px] px-2 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
                         />
-                        <input
-                          inputMode="numeric"
-                          value={String(row.qty)}
-                          onChange={(e) =>
-                            setProductForm((s) => ({
-                              ...s,
-                              sizeStock: s.sizeStock.map((r, i) =>
-                                i === idx
-                                  ? { ...r, qty: Math.max(0, Number(e.target.value) || 0) }
-                                  : r
-                              ),
-                            }))
-                          }
-                          placeholder="Qty"
-                          className="h-[36px] px-2 border border-black/10 font-body text-[13px] focus:outline-none focus:border-black/30"
-                        />
-                        <label className="flex items-center gap-1.5 font-body text-[11px] text-black/55 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={row.outOfStock}
-                            onChange={(e) =>
-                              setProductForm((s) => ({
-                                ...s,
-                                sizeStock: s.sizeStock.map((r, i) =>
-                                  i === idx ? { ...r, outOfStock: e.target.checked } : r
-                                ),
-                              }))
-                            }
-                          />
-                          Out
-                        </label>
                         {productForm.sizeStock.length > 1 && (
                           <button
                             type="button"
                             onClick={() =>
-                              setProductForm((s) => ({
-                                ...s,
-                                sizeStock: s.sizeStock.filter((_, i) => i !== idx),
-                              }))
+                              setProductForm((s) => {
+                                const sizeStock = s.sizeStock.filter((_, i) => i !== idx)
+                                const sizeLabels = sizeStock.map((r) => r.size)
+                                return {
+                                  ...s,
+                                  sizeStock,
+                                  colors: s.colors.map((c) => ({
+                                    ...c,
+                                    sizeStock: syncColorSizeStockWithLabels(c.sizeStock, sizeLabels),
+                                  })),
+                                }
+                              })
                             }
-                            className="font-body text-[11px] text-red-600 hover:text-red-700"
+                            className="font-body text-[11px] text-red-600 hover:text-red-700 px-2"
                           >
                             ×
                           </button>
@@ -1846,7 +1846,16 @@ export default function Admin() {
                     onClick={() =>
                       setProductForm((s) => ({
                         ...s,
-                        colors: [...s.colors, emptyColorEntry()],
+                        colors: [
+                          ...s.colors,
+                          {
+                            ...emptyColorEntry(),
+                            sizeStock: syncColorSizeStockWithLabels(
+                              undefined,
+                              s.sizeStock.map((r) => r.size)
+                            ),
+                          },
+                        ],
                       }))
                     }
                     className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"
@@ -2080,7 +2089,16 @@ export default function Admin() {
                       onClick={() =>
                         setFeaturedForm((s) => ({
                           ...s,
-                          colors: [...s.colors, emptyColorEntry()],
+                          colors: [
+                            ...s.colors,
+                            {
+                              ...emptyColorEntry(),
+                              sizeStock: syncColorSizeStockWithLabels(
+                                undefined,
+                                parseSizeList(s.fullSize)
+                              ),
+                            },
+                          ],
                         }))
                       }
                       className="font-body text-[11px] uppercase tracking-[0.06em] text-black/60 hover:text-black"

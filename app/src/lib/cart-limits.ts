@@ -1,5 +1,6 @@
 import { getCustomerColorOptions } from '@/lib/product-colors'
 import type { Product } from '@/lib/products-store'
+import { maxQtyForColorAndSize, productHasColorSizeInventory } from '@/lib/color-size-stock'
 import {
   getProductSizeStock,
   hasExplicitSizeStock,
@@ -14,6 +15,15 @@ export function getCartItemMaxQuantity(
 ): number {
   if (!product) return 99
 
+  const colors = getCustomerColorOptions(product)
+  const color = colorName.trim()
+    ? colors.find((c) => c.name.trim() === colorName.trim())
+    : undefined
+
+  if (productHasColorSizeInventory(colors)) {
+    return maxQtyForColorAndSize(color, size, 99)
+  }
+
   const trackSize = hasExplicitSizeStock(product)
   const row = getProductSizeStock(product).find((r) => r.size === size)
   if (!row || !isSizeAvailable(row, trackSize)) return 0
@@ -24,12 +34,8 @@ export function getCartItemMaxQuantity(
     product.stock > 0 ? product.stock : 99
   )
 
-  if (colorName.trim()) {
-    const colors = getCustomerColorOptions(product)
-    const color = colors.find((c) => c.name.trim() === colorName.trim())
-    if (color && color.stock !== undefined && color.stock > 0) {
-      cap = Math.min(cap, color.stock)
-    }
+  if (color && color.stock !== undefined && color.stock > 0) {
+    cap = Math.min(cap, color.stock)
   }
 
   return Math.max(0, cap)

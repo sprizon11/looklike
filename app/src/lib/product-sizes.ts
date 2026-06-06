@@ -18,8 +18,19 @@ export function parseSizeList(size?: string): string[] {
     .filter(Boolean)
 }
 
+/** True when product-level size rows track quantity (legacy). Label-only rows return false. */
 export function hasExplicitSizeStock(product: { sizeStock?: SizeStock[] }): boolean {
-  return Array.isArray(product.sizeStock) && product.sizeStock.length > 0
+  return (
+    Array.isArray(product.sizeStock) &&
+    product.sizeStock.some((r) => (Number(r.qty) || 0) > 0 || Boolean(r.outOfStock))
+  )
+}
+
+export function buildLabelOnlySizeStock(labels: string[]): SizeStock[] {
+  return labels
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((size) => ({ size, qty: 0, outOfStock: false }))
 }
 
 export function getProductSizeStock(product: {

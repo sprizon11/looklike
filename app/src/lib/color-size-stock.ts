@@ -95,3 +95,11 @@ export function maxQtyForColorAndSize(
   if (color.stock !== undefined && color.stock > 0) return color.stock
   return fallback
 }
+
+export function productHasColorSizeInventory(colors: ProductColor[] | undefined): boolean {
+  return (colors || []).some(colorHasSizeStock)
+}
+
+export function totalProductStockFromColors(colors: ProductColor[]): number {
+  return colors.reduce((sum, c) => sum + totalColorSizeStock(c), 0)
+}

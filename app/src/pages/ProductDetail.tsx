@@ -20,7 +20,7 @@ import {
   isSizeAvailableForColor,
   sizeStockHintForColor,
 } from '@/lib/color-stock'
-import { maxQtyForColorAndSize, colorHasSizeStock } from '@/lib/color-size-stock'
+import { maxQtyForColorAndSize, colorHasSizeStock, productHasColorSizeInventory } from '@/lib/color-size-stock'
 import {
   getProductSizeStock,
   hasExplicitSizeStock,
@@ -49,7 +49,11 @@ export default function ProductDetail() {
     [product]
   )
 
-  const trackSizeQty = product ? hasExplicitSizeStock(product) : false
+  const trackSizeQty = useMemo(() => {
+    if (!product) return false
+    if (productHasColorSizeInventory(colors)) return false
+    return hasExplicitSizeStock(product)
+  }, [product, colors])
 
   const sizeRows = useMemo(
     () => (product ? getProductSizeStock(product) : []),
