@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Routes, Route } from 'react-router'
+import { Routes, Route, useLocation } from 'react-router'
 import { repairCartStorage } from '@/lib/cart-store'
 import Home from './pages/Home'
 import WhatsAppFloat from './components/WhatsAppFloat'
@@ -19,6 +19,21 @@ function RouteFallback() {
   )
 }
 
+function ScrollToTop() {
+  const { pathname, hash } = useLocation()
+
+  useEffect(() => {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual'
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [pathname, hash])
+
+  return null
+}
+
 export default function App() {
   useEffect(() => {
     repairCartStorage()
@@ -26,6 +41,7 @@ export default function App() {
 
   return (
     <>
+    <ScrollToTop />
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<Home />} />

@@ -188,8 +188,6 @@ export default function FeaturedDetail() {
               Rs. {item.price}
             </p>
 
-            <OrderDisclaimer className="mt-5" compact />
-
             {showColorPicker && (
               <div className="mt-8">
                 <p className="font-body text-[14px] text-black">
@@ -326,7 +324,9 @@ export default function FeaturedDetail() {
 
             {pickError && <p className="mt-4 font-body text-[13px] text-red-600">{pickError}</p>}
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <OrderDisclaimer className="mt-6" compact />
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={handleAddToCart}
