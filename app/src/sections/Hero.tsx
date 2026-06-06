@@ -61,10 +61,10 @@ export default function Hero() {
           Effortless Style for <span className="italic font-medium gold-text">Every Woman</span>
         </h1>
         <div className="mt-5 space-y-1">
-          <p className="font-display text-[22px] sm:text-[26px] md:text-[30px] italic font-medium gold-text leading-tight">
+          <p className="font-display text-[22px] sm:text-[26px] md:text-[30px] italic font-medium text-white leading-tight [text-shadow:0_2px_14px_rgba(0,0,0,0.75)]">
             style ah choose pannunga
           </p>
-          <p className="font-display text-[22px] sm:text-[26px] md:text-[30px] italic font-medium gold-text leading-tight">
+          <p className="font-display text-[22px] sm:text-[26px] md:text-[30px] italic font-medium text-white leading-tight [text-shadow:0_2px_14px_rgba(0,0,0,0.75)]">
             look ah change pannunga
           </p>
         </div>
